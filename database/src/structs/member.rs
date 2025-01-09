@@ -1,5 +1,6 @@
 use rand::Rng;
 use sqlx::PgPool;
+use types::cards::poker::Card;
 
 use crate::{
     models::{ItemInventory, JobModel, MemberModel, Role, StatModel},
@@ -20,6 +21,7 @@ pub struct Member {
     pub profile_text: Option<String>,
     pub job: Option<JobModel>,
     pub stats: Vec<StatModel>,
+    pub deck: Vec<Card>,
 }
 
 impl Member {
@@ -36,6 +38,7 @@ impl Member {
             profile_text: None,
             job: None,
             stats: Vec::new(),
+            deck: Vec::new(),
         }
     }
 
@@ -109,7 +112,14 @@ impl Member {
             profile_text: stats.profile_text,
             job,
             stats: statistics,
+            deck: Card::standart_deck(),
         })
+    }
+
+    pub fn reload_deck(&mut self) {
+        if self.deck.len() < 10 {
+            self.deck = Card::standart_deck();
+        }
     }
 
     // get statistic info by name
