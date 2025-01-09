@@ -1,11 +1,12 @@
-use crate::commands::messages::bj::Responses;
+mod responses;
+
 use crate::{Context, Error, Parse};
 use poise::serenity_prelude::{ComponentInteraction, ComponentInteractionCollector};
 use tokio::{
     sync::mpsc,
     time::{sleep, Duration},
 };
-use types::bj::{Blackjack, FinishReason, State};
+use types::blackjack::{Blackjack, FinishReason, State};
 
 enum Signal {
     NextRound {
@@ -30,29 +31,27 @@ enum Event {
     interaction_context = "Guild|BotDm|PrivateChannel",
     category = "gambling"
 )]
-pub async fn blackjack(ctx: Context<'_>, amount: String) -> Result<(), Error> {
-    let bet = Parse::amount(ctx, ctx.author().id, Some(amount)).await?;
-
+pub async fn blackjack(ctx: Context<'_>, amount: Option<String>) -> Result<(), Error> {
+    let bet = Parse::amount(ctx, ctx.author().id, amount).await?;
+    let mut last_inter = None;
     let mut bj = Blackjack::new(ctx.author().clone(), bet);
 
     bj.set_timeout();
     bj.deal_cards();
 
-    // channel to receive signals from the event loop
     let (tx, mut rx) = mpsc::channel::<Signal>(5);
     let tx_clone = tx.clone();
 
-    let mut last_inter = None;
-
-    let mut msg = Responses::first(ctx, &mut bj).await?;
+    let msg = responses::first(ctx, &mut bj).await?;
 
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(1));
 
         loop {
             interval.tick().await;
-            if !tx_clone.is_closed() {
-                tx_clone.send(Signal::Tick).await.unwrap();
+
+            if tx_clone.send(Signal::Tick).await.is_err() {
+                break;
             }
         }
     });
@@ -83,10 +82,12 @@ pub async fn blackjack(ctx: Context<'_>, amount: String) -> Result<(), Error> {
                     }
                 }
                 Signal::NextRound { inter } => {
-                    println!("Next round");
+                    let res = bj.round_result();
+                    bj.set_last_event(res);
+
                     bj.clear_hands();
                     bj.deal_cards();
-                    msg = Responses::new_round(ctx, &mut bj, &inter).await?;
+                    responses::new_round(ctx, &mut bj, &inter, msg.id).await?;
                 }
                 Signal::GameEnd { inter, reason } => {
                     println!("Game end");
@@ -103,9 +104,11 @@ pub async fn blackjack(ctx: Context<'_>, amount: String) -> Result<(), Error> {
 
                     if inter.data.custom_id == format!("{}_hit", ctx.id()) {
                         bj.player_hit();
-                        Responses::update(ctx, &mut bj, &inter).await?;
+                        responses::update(ctx, &mut bj, &inter).await?;
 
                         if bj.player.is_bust() {
+                            sleep(Duration::from_secs(1)).await;
+
                             tx.send(Signal::NextRound {
                                 inter: inter.clone(),
                             })
@@ -116,13 +119,13 @@ pub async fn blackjack(ctx: Context<'_>, amount: String) -> Result<(), Error> {
                     if inter.data.custom_id == format!("{}_stand", ctx.id()) {
                         bj.player.state = State::Stand;
 
-                        Responses::update(ctx, &mut bj, &inter).await?;
+                        responses::update(ctx, &mut bj, &inter).await?;
                         sleep(Duration::from_secs(1)).await;
 
                         while bj.dealer.hand_value(false) < 17 {
                             bj.dealer_hit();
 
-                            Responses::update_followup(ctx, &mut bj, &inter, msg.id).await?;
+                            responses::update_followup(ctx, &mut bj, &inter, msg.id).await?;
                             sleep(Duration::from_secs(1)).await;
                         }
 

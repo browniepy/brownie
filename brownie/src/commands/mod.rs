@@ -20,4 +20,4 @@ pub mod audio;
 
 pub mod airpoker;
 
-pub mod bj;
+pub mod blackjack;

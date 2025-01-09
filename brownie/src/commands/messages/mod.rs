@@ -14,8 +14,6 @@ pub mod oldmaid;
 
 pub mod airpoker;
 
-pub mod bj;
-
 pub async fn wrong_interaction(
     ctx: Context<'_>,
     inter: &ComponentInteraction,

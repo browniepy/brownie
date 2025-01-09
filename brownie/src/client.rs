@@ -20,7 +20,7 @@ pub async fn build() -> Result<Client, Error> {
         commands::audio::audio(),
         commands::oldmaid::oldmaid(),
         commands::airpoker::airpoker(),
-        commands::bj::blackjack(),
+        commands::blackjack::blackjack(),
     ];
 
     let translations = read_ftl()?;
