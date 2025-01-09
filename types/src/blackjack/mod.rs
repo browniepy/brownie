@@ -19,7 +19,6 @@ pub enum RoundResult {
 }
 
 pub struct Blackjack {
-    pub deck: Vec<Card>,
     pub player: Player,
     pub dealer: Dealer,
     pub timeout: Option<AtomicU8>,
@@ -34,7 +33,6 @@ impl Blackjack {
         let player = Player::new(user, bet);
 
         Self {
-            deck: Card::standart_deck(),
             player,
             dealer: Dealer::default(),
             timeout: None,
@@ -118,22 +116,16 @@ impl Blackjack {
         self.dealer.hand.clear();
     }
 
-    pub fn deal_cards(&mut self) {
-        self.player.hand.push(self.deck.pop().unwrap());
-        self.dealer.hand.push(self.deck.pop().unwrap());
+    pub fn deal_cards(&mut self, deck: &mut Vec<Card>) {
+        self.player.hand.push(deck.pop().unwrap());
+        self.dealer.hand.push(deck.pop().unwrap());
 
-        self.player.hand.push(self.deck.pop().unwrap());
-        self.dealer.hand.push(self.deck.pop().unwrap());
+        self.player.hand.push(deck.pop().unwrap());
+        self.dealer.hand.push(deck.pop().unwrap());
     }
 
-    pub fn check_deck(&mut self) {
-        if self.deck.len() < 10 {
-            self.deck = Card::standart_deck();
-        }
-    }
-
-    pub fn player_hit(&mut self) {
-        let card = self.deck.pop().unwrap();
+    pub fn player_hit(&mut self, deck: &mut Vec<Card>) {
+        let card = deck.pop().unwrap();
         self.player.hand.push(card);
 
         if self.player.hand_value() > 21 {
@@ -141,9 +133,9 @@ impl Blackjack {
         }
     }
 
-    pub fn dealer_hit(&mut self) {
+    pub fn dealer_hit(&mut self, deck: &mut Vec<Card>) {
         if self.dealer.hand_value(false) < 17 {
-            self.dealer.hand.push(self.deck.pop().unwrap());
+            self.dealer.hand.push(deck.pop().unwrap());
 
             if self.dealer.hand_value(false) > 21 {
                 self.is_dealer_bust = true;

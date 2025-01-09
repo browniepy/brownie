@@ -7,11 +7,11 @@ use poise::{
     },
     CreateReply,
 };
-use types::blackjack::Blackjack;
+use types::{blackjack::Blackjack, cards::poker::Card};
 
-fn final_table_str(bj: &mut Blackjack) -> Result<String, Error> {
+fn final_table_str(bj: &mut Blackjack, deck: &[Card]) -> Result<String, Error> {
     use types::blackjack::RoundResult;
-    let text = show_table_str(bj)?;
+    let text = show_table_str(bj, deck)?;
     let mut content = String::new();
 
     let event = bj.round_result();
@@ -36,7 +36,7 @@ fn final_table_str(bj: &mut Blackjack) -> Result<String, Error> {
     Ok(content)
 }
 
-fn show_table_str(bj: &mut Blackjack) -> Result<String, Error> {
+fn show_table_str(bj: &mut Blackjack, deck: &[Card]) -> Result<String, Error> {
     use types::blackjack::{RoundResult, State};
 
     let dealer_val = if !bj.player.is_stand() {
@@ -67,7 +67,7 @@ fn show_table_str(bj: &mut Blackjack) -> Result<String, Error> {
         None => "Juego en curso",
     };
 
-    let deck_text = format!("Cartas restantes {}\n\n", bj.deck.len());
+    let deck_text = format!("Cartas restantes {}\n\n", deck.len());
 
     let state = if bj.is_dealer_bust { " Bust" } else { "" };
 
@@ -113,8 +113,8 @@ pub async fn comps_bj(ctx: Context<'_>, bj: &mut Blackjack) -> Vec<CreateActionR
     ])]
 }
 
-pub async fn first(ctx: Context<'_>, bj: &mut Blackjack) -> Result<Message, Error> {
-    let text = show_table_str(bj)?;
+pub async fn first(ctx: Context<'_>, bj: &mut Blackjack, deck: &[Card]) -> Result<Message, Error> {
+    let text = show_table_str(bj, deck)?;
 
     let res = ctx
         .send(
@@ -133,8 +133,9 @@ pub async fn round_result(
     bj: &mut Blackjack,
     inter: &ComponentInteraction,
     msg: MessageId,
+    deck: &[Card],
 ) -> Result<(), Error> {
-    let text = show_table_str(bj)?;
+    let text = show_table_str(bj, deck)?;
 
     inter
         .edit_followup(
@@ -153,8 +154,9 @@ pub async fn update(
     ctx: Context<'_>,
     bj: &mut Blackjack,
     inter: &ComponentInteraction,
+    deck: &[Card],
 ) -> Result<(), Error> {
-    let text = show_table_str(bj)?;
+    let text = show_table_str(bj, deck)?;
 
     inter
         .create_response(
@@ -175,11 +177,12 @@ pub async fn update_followup(
     bj: &mut Blackjack,
     inter: &ComponentInteraction,
     msg: MessageId,
+    deck: &[Card],
 ) -> Result<(), Error> {
     let text = if bj.dealer.hand_value(false) >= 17 {
-        final_table_str(bj)?
+        final_table_str(bj, deck)?
     } else {
-        show_table_str(bj)?
+        show_table_str(bj, deck)?
     };
 
     inter
@@ -200,8 +203,9 @@ pub async fn new_round(
     bj: &mut Blackjack,
     inter: &ComponentInteraction,
     msg: MessageId,
+    deck: &[Card],
 ) -> Result<(), Error> {
-    let text = show_table_str(bj)?;
+    let text = show_table_str(bj, deck)?;
 
     inter
         .edit_followup(
