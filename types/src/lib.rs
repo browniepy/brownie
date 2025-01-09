@@ -1,4 +1,4 @@
-pub mod bj;
+pub mod blackjack;
 
 pub mod cards;
 
