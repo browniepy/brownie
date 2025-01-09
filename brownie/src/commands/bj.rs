@@ -30,14 +30,10 @@ enum Event {
     interaction_context = "Guild|BotDm|PrivateChannel",
     category = "gambling"
 )]
-pub async fn blackjack(ctx: Context<'_>, amount: String, solo: Option<bool>) -> Result<(), Error> {
+pub async fn blackjack(ctx: Context<'_>, amount: String) -> Result<(), Error> {
     let bet = Parse::amount(ctx, ctx.author().id, Some(amount)).await?;
 
-    let mut bj = Blackjack::new(
-        ctx.author().clone(),
-        bet,
-        if solo.unwrap_or(true) { 1 } else { 2 },
-    );
+    let mut bj = Blackjack::new(ctx.author().clone(), bet);
 
     bj.set_timeout();
     bj.deal_cards();
@@ -101,73 +97,46 @@ pub async fn blackjack(ctx: Context<'_>, amount: String, solo: Option<bool>) -> 
             Event::Interaction(inter) => {
                 last_inter = Some(inter.clone());
 
-                if bj.is_player_in_game(&inter.user) {
+                if inter.user.id == bj.player.id {
                     bj.set_timeout();
                     bj.check_deck();
-                }
 
-                if inter.data.custom_id == format!("{}_hit", ctx.id()) {
-                    if let Some(player) = bj.get_player_mut(&inter.user) {
-                        if player.can_hit() {
-                            bj.player_hit(&inter.user);
-                            Responses::update(ctx, &mut bj, &inter).await?;
+                    if inter.data.custom_id == format!("{}_hit", ctx.id()) {
+                        bj.player_hit();
+                        Responses::update(ctx, &mut bj, &inter).await?;
 
-                            if bj.all_bust() {
-                                tx.send(Signal::NextRound {
-                                    inter: inter.clone(),
-                                })
-                                .await?;
-                            }
-                        }
-                    } else {
-                        // TODO:
-                    }
-                }
-
-                if inter.data.custom_id == format!("{}_stand", ctx.id()) {
-                    if let Some(player) = bj.get_player_mut(&inter.user) {
-                        if player.can_stand() {
-                            player.state = State::Stand;
-
-                            if bj.all_stand() {
-                                Responses::update(ctx, &mut bj, &inter).await?;
-                                sleep(Duration::from_secs(1)).await;
-
-                                while bj.dealer.hand_value(false) < 17 {
-                                    bj.dealer_hit();
-
-                                    Responses::update_followup(ctx, &mut bj, &inter, msg.id)
-                                        .await?;
-                                    sleep(Duration::from_secs(1)).await;
-                                }
-
-                                println!("Dealer hand value: {}", bj.dealer.hand_value(false));
-
-                                tx.send(Signal::NextRound {
-                                    inter: inter.clone(),
-                                })
-                                .await?;
-                            } else {
-                                Responses::update(ctx, &mut bj, &inter).await?;
-                            }
+                        if bj.player.is_bust() {
+                            tx.send(Signal::NextRound {
+                                inter: inter.clone(),
+                            })
+                            .await?;
                         }
                     }
-                }
 
-                if inter.data.custom_id == format!("{}_leave", ctx.id()) {
-                    if let Some(player) = bj.get_player(&inter.user) {
-                        bj.remove_player(&inter.user);
+                    if inter.data.custom_id == format!("{}_stand", ctx.id()) {
+                        bj.player.state = State::Stand;
 
-                        if bj.players.is_empty() {
-                            break;
+                        Responses::update(ctx, &mut bj, &inter).await?;
+                        sleep(Duration::from_secs(1)).await;
+
+                        while bj.dealer.hand_value(false) < 17 {
+                            bj.dealer_hit();
+
+                            Responses::update_followup(ctx, &mut bj, &inter, msg.id).await?;
+                            sleep(Duration::from_secs(1)).await;
                         }
-                    } else {
-                        // TODO:
+
+                        println!("Dealer hand value: {}", bj.dealer.hand_value(false));
+
+                        tx.send(Signal::NextRound {
+                            inter: inter.clone(),
+                        })
+                        .await?;
                     }
+                } else {
+                    // TODO: not your interaction message
                 }
             }
         }
     }
-
-    Ok(())
 }

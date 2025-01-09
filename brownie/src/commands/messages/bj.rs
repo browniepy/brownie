@@ -10,25 +10,27 @@ use poise::{
 use types::bj::{Blackjack, State};
 
 fn final_table_str(bj: &mut Blackjack) -> Result<String, Error> {
+    use types::bj::RoundResult;
     let text = show_table_str(bj)?;
 
-    let results = bj.get_results();
+    let results = bj.round_result();
 
     let mut re = String::new();
 
-    if let Some(winners) = results.winners {
-        if winners.len() == 1 {
-            let player = winners.first().unwrap();
-            re.push_str(&format!("{} ganó la ronda", player.name));
-        } else {
-            let winners = winners
-                .iter()
-                .map(|p| p.name.clone())
-                .collect::<Vec<String>>();
-            re.push_str(&format!("{} ganaron", winners.join(", ")));
+    match results {
+        RoundResult::Draw => {
+            re.push_str("Empate\n");
         }
-    } else {
-        re.push_str("Nadie ganó esta ronda");
+        RoundResult::Win { state } => {
+            re.push_str("Ganaste la ronda\n");
+        }
+        RoundResult::Lose { bust } => {
+            if bust {
+                re.push_str("Te pasaste de 21\n");
+            } else {
+                re.push_str("Perdiste la ronda\n");
+            }
+        }
     }
 
     re.push_str(&text);
@@ -36,13 +38,13 @@ fn final_table_str(bj: &mut Blackjack) -> Result<String, Error> {
 }
 
 fn show_table_str(bj: &mut Blackjack) -> Result<String, Error> {
-    let dealer_val = if !bj.all_stand() {
+    let dealer_val = if !bj.player.is_stand() {
         bj.dealer.hand_value(true)
     } else {
         bj.dealer.hand_value(false)
     };
 
-    let dealer_hand = if !bj.all_stand() {
+    let dealer_hand = if !bj.player.is_stand() {
         bj.dealer.dbg_hand(true)
     } else {
         bj.dealer.dbg_hand(false)
@@ -57,29 +59,27 @@ fn show_table_str(bj: &mut Blackjack) -> Result<String, Error> {
         deck_text, state, dealer_val, dealer_hand
     );
 
-    for player in bj.players.values() {
-        let state = match player.state {
-            State::None => "",
-            State::Stand => " Stand",
-            State::Bust => " Bust",
-            State::Blackjack => " Blackjack",
-        };
+    let state = match bj.player.state {
+        State::None => "",
+        State::Stand => " Stand",
+        State::Bust => " Bust",
+        State::Blackjack => " Blackjack",
+    };
 
-        text.push_str(&format!(
-            "- {}{} {}\n{}\n\n",
-            player.name,
-            state,
-            player.hand_value(),
-            player.dbg_hand()
-        ));
-    }
+    text.push_str(&format!(
+        "- {}{} {}\n{}\n\n",
+        bj.player.name,
+        state,
+        bj.player.hand_value(),
+        bj.player.dbg_hand()
+    ));
 
     Ok(text)
 }
 pub struct Responses;
 
 pub async fn comps_bj(ctx: Context<'_>, bj: &mut Blackjack) -> Vec<CreateActionRow> {
-    let mut comps = vec![CreateActionRow::Buttons(vec![
+    vec![CreateActionRow::Buttons(vec![
         CreateButton::new(format!("{}_hit", ctx.id()))
             .style(ButtonStyle::Secondary)
             .label("Hit"),
@@ -90,21 +90,7 @@ pub async fn comps_bj(ctx: Context<'_>, bj: &mut Blackjack) -> Vec<CreateActionR
             .style(ButtonStyle::Secondary)
             .label("Double")
             .disabled(true),
-    ])];
-
-    if !bj.is_solo() {
-        comps.push(CreateActionRow::Buttons(vec![
-            CreateButton::new(format!("{}_leave", ctx.id()))
-                .style(ButtonStyle::Secondary)
-                .label("Leave"),
-            CreateButton::new(format!("{}_join", ctx.id(),))
-                .style(ButtonStyle::Secondary)
-                .label("Join")
-                .disabled(bj.is_full()),
-        ]));
-    }
-
-    comps
+    ])]
 }
 
 impl Responses {
@@ -157,7 +143,7 @@ impl Responses {
                 CreateInteractionResponse::UpdateMessage(
                     CreateInteractionResponseMessage::new()
                         .content(text)
-                        .components(if bj.all_stand() {
+                        .components(if bj.player.is_stand() {
                             vec![]
                         } else {
                             comps_bj(ctx, bj).await

@@ -2,7 +2,7 @@ use crate::cards::poker::{BjValue, Card};
 use inflector::Inflector;
 use poise::serenity_prelude::{User, UserId};
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum State {
     Stand,
     Bust,

@@ -1,47 +1,42 @@
-mod player;
-use std::{collections::HashMap, sync::atomic::AtomicU8};
+use std::sync::atomic::AtomicU8;
 
+pub mod player;
 pub use player::{Dealer, Player, State};
 
 use crate::cards::poker::Card;
-use poise::serenity_prelude::{User, UserId};
+use poise::serenity_prelude::User;
 
 pub enum FinishReason {
     Timeout,
     FinalRound,
-    EmptyPlayers,
+    PlayerLeave,
 }
 
-pub struct RoundResult<'a> {
-    pub winners: Option<Vec<&'a Player>>,
-    pub losers: Option<Vec<&'a Player>>,
-    pub draws: Option<Vec<&'a Player>>,
+pub enum RoundResult {
+    Draw,
+    Win { state: State },
+    Lose { bust: bool },
 }
 
 pub struct Blackjack {
     pub deck: Vec<Card>,
-    pub players: HashMap<UserId, Player>,
+    pub player: Player,
     pub dealer: Dealer,
     pub timeout: Option<AtomicU8>,
-    pub max_players: u8,
     pub is_dealer_bust: bool,
     pub max_rounds: usize,
     pub round: usize,
 }
 
 impl Blackjack {
-    pub fn new(user: User, bet: i32, max_players: u8) -> Self {
+    pub fn new(user: User, bet: i32) -> Self {
         let player = Player::new(user, bet);
-
-        let mut players = HashMap::new();
-        players.insert(player.id, player);
 
         Self {
             deck: Card::standart_deck(),
-            players,
+            player,
             dealer: Dealer::default(),
             timeout: None,
-            max_players,
             is_dealer_bust: false,
             max_rounds: 7,
             round: 1,
@@ -56,112 +51,38 @@ impl Blackjack {
         self.round == self.max_rounds
     }
 
-    pub fn is_full(&mut self) -> bool {
-        self.players.len() as u8 >= self.max_players
-    }
+    pub fn player_wins(&self) -> bool {
+        match self.player.state {
+            State::Bust => false, // Jugador pierde si se pasa
+            _ => {
+                if self.is_dealer_bust {
+                    true // Jugador gana si el dealer se pasa
+                } else {
+                    let player_value = self.player.hand_value();
+                    let dealer_value = self.dealer.hand_value(false);
 
-    pub fn is_solo(&self) -> bool {
-        self.players.len() == 1 && self.max_players == 1
-    }
-
-    pub fn all_stand(&mut self) -> bool {
-        // check if all players are stand or Blackjack
-        self.players
-            .values_mut()
-            .all(|player| player.is_stand() || player.is_blackjack_and_set())
-    }
-
-    pub fn all_bust(&mut self) -> bool {
-        // check if all players are bust
-        self.players.values_mut().all(|player| player.is_bust())
-    }
-
-    fn get_winners(&self) -> Vec<&Player> {
-        let mut winners = Vec::new();
-
-        for player in self.players.values() {
-            // colapsed version
-            if player.is_blackjack()
-                || (!player.is_bust() && player.hand_value() > self.dealer.hand_value(false))
-            {
-                winners.push(player);
+                    player_value > dealer_value // Jugador gana si su puntaje es mayor
+                }
             }
         }
-
-        winners
     }
 
-    fn get_losers(&self) -> Vec<&Player> {
-        let mut losers = Vec::new();
-
-        for player in self.players.values() {
-            if player.is_bust() || (player.hand_value() < self.dealer.hand_value(false)) {
-                losers.push(player);
-            }
+    pub fn round_result(&self) -> RoundResult {
+        if self.player.is_bust() {
+            return RoundResult::Lose { bust: true };
         }
 
-        losers
-    }
-
-    fn get_draws(&self) -> Vec<&Player> {
-        let mut draws = Vec::new();
-
-        for player in self.players.values() {
-            if player.hand_value() == self.dealer.hand_value(false) && !player.is_bust() {
-                draws.push(player);
-            }
+        if self.player_wins() {
+            return RoundResult::Win {
+                state: self.player.state.clone(),
+            };
         }
 
-        draws
-    }
-
-    pub fn get_results(&self) -> RoundResult {
-        let winners = self.get_winners();
-        let losers = self.get_losers();
-        let draws = self.get_draws();
-
-        RoundResult {
-            winners: if winners.is_empty() {
-                None
-            } else {
-                Some(winners)
-            },
-            losers: if losers.is_empty() {
-                None
-            } else {
-                Some(losers)
-            },
-            draws: if draws.is_empty() { None } else { Some(draws) },
+        if self.is_dealer_bust || self.dealer.hand_value(false) == self.player.hand_value() {
+            return RoundResult::Draw;
         }
-    }
 
-    pub fn add_player(&mut self, user: User, bet: i32) {
-        let player = Player::new(user, bet);
-        self.players.insert(player.id, player);
-    }
-
-    pub fn remove_player(&mut self, user: &User) {
-        self.players.remove(&user.id);
-    }
-
-    pub fn get_player(&self, user: &User) -> Option<&Player> {
-        self.players.get(&user.id)
-    }
-
-    pub fn get_player_mut(&mut self, user: &User) -> Option<&mut Player> {
-        self.players.get_mut(&user.id)
-    }
-
-    pub fn get_multiplier(&self) -> i32 {
-        match self.players.len() {
-            1 => 0,
-            2 => 10,
-            _ => 20,
-        }
-    }
-
-    fn reload_deck(&mut self) {
-        self.deck = Card::standart_deck()
+        return RoundResult::Lose { bust: false };
     }
 
     pub fn set_timeout(&mut self) {
@@ -186,45 +107,32 @@ impl Blackjack {
     }
 
     pub fn clear_hands(&mut self) {
-        for player in self.players.values_mut() {
-            player.hand.clear();
-            player.state = State::None;
-        }
+        self.player.hand.clear();
+        self.player.state = State::None;
         self.dealer.hand.clear();
     }
 
     pub fn deal_cards(&mut self) {
-        for player in self.players.values_mut() {
-            player.hand.push(self.deck.pop().unwrap());
-            player.hand.push(self.deck.pop().unwrap());
-
-            player.is_blackjack_and_set();
-        }
-
+        self.player.hand.push(self.deck.pop().unwrap());
         self.dealer.hand.push(self.deck.pop().unwrap());
+
+        self.player.hand.push(self.deck.pop().unwrap());
         self.dealer.hand.push(self.deck.pop().unwrap());
     }
 
-    /// check if deck needs to be reloaded
     pub fn check_deck(&mut self) {
         if self.deck.len() < 10 {
-            self.reload_deck();
+            self.deck = Card::standart_deck();
         }
     }
 
-    pub fn player_hit(&mut self, user: &User) {
+    pub fn player_hit(&mut self) {
         let card = self.deck.pop().unwrap();
-        let player = self.get_player_mut(user).unwrap();
+        self.player.hand.push(card);
 
-        player.hand.push(card);
-
-        if player.hand_value() > 21 && !player.is_stand() && !player.is_blackjack_and_set() {
-            player.state = State::Bust;
+        if self.player.hand_value() > 21 {
+            self.player.state = State::Bust;
         }
-    }
-
-    pub fn is_player_in_game(&self, user: &User) -> bool {
-        self.players.contains_key(&user.id)
     }
 
     pub fn dealer_hit(&mut self) {
