@@ -10,6 +10,7 @@ pub enum State {
     Blackjack,
 }
 
+#[derive(Clone, Debug)]
 pub struct Player {
     pub id: UserId,
     pub name: String,

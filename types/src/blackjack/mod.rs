@@ -26,6 +26,7 @@ pub struct Blackjack {
     pub is_dealer_bust: bool,
     pub max_rounds: usize,
     pub round: usize,
+    pub last_event: Option<RoundResult>,
 }
 
 impl Blackjack {
@@ -40,6 +41,7 @@ impl Blackjack {
             is_dealer_bust: false,
             max_rounds: 7,
             round: 1,
+            last_event: None,
         }
     }
 
@@ -67,7 +69,7 @@ impl Blackjack {
         }
     }
 
-    pub fn round_result(&self) -> RoundResult {
+    pub fn round_result(&mut self) -> RoundResult {
         if self.player.is_bust() {
             return RoundResult::Lose { bust: true };
         }
@@ -83,6 +85,10 @@ impl Blackjack {
         }
 
         return RoundResult::Lose { bust: false };
+    }
+
+    pub fn set_last_event(&mut self, event: RoundResult) {
+        self.last_event = Some(event);
     }
 
     pub fn set_timeout(&mut self) {
