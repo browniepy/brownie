@@ -47,6 +47,11 @@ pub async fn build() -> Result<Client, Error> {
 
                 tracing::info!("{} used {}", author, command);
                 crate::cache(ctx, ctx.author().id).await;
+
+                let member = crate::get_member(ctx, ctx.author().id).await.unwrap();
+                let mut write = member.write().await;
+
+                write.reload_deck();
             })
         },
         on_error: |error| Box::pin(on_error(error)),
