@@ -52,19 +52,19 @@ fn show_table_str(bj: &mut Blackjack) -> Result<String, Error> {
     };
 
     let last_event_text = match &bj.last_event {
-        Some(RoundResult::Draw) => "La ronda anterior fue un empate",
+        Some(RoundResult::Draw) => "Empate",
         Some(RoundResult::Win { state }) => match state {
-            State::Blackjack => "Hiciste blackjack en la ronda anterior",
-            _ => "Ganaste la ronda anterior",
+            State::Blackjack => "Ganadte por Blackjack",
+            _ => "Ganaste",
         },
         Some(RoundResult::Lose { bust }) => {
             if *bust {
-                "Te pasado de 21 en la ronda anterior"
+                "Perdiste por pasarte de 21"
             } else {
-                "Perdiste la ronda anterior"
+                "Perdiste"
             }
         }
-        None => "Primera ronda",
+        None => "Juego en curso",
     };
 
     let deck_text = format!("Cartas restantes {}\n\n", bj.deck.len());
@@ -132,17 +132,17 @@ pub async fn round_result(
     ctx: Context<'_>,
     bj: &mut Blackjack,
     inter: &ComponentInteraction,
+    msg: MessageId,
 ) -> Result<(), Error> {
     let text = show_table_str(bj)?;
 
     inter
-        .create_response(
+        .edit_followup(
             ctx,
-            CreateInteractionResponse::UpdateMessage(
-                CreateInteractionResponseMessage::new()
-                    .content(text)
-                    .components(comps_bj(ctx, bj).await),
-            ),
+            msg,
+            CreateInteractionResponseFollowup::new()
+                .content(text)
+                .components(comps_bj(ctx, bj).await),
         )
         .await?;
 
