@@ -1,0 +1,21 @@
+[package]
+name = "brownie"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.40.0", features = ["macros", "rt-multi-thread"] }
+database = { version = "0.1.0", path = "../database" }
+rand.workspace = true
+strum.workspace = true
+Inflector = "0.11.4"
+chrono = "0.4.38"
+fluent = "0.16.1"
+intl-memoizer = "0.5.2"
+tracing-subscriber = "0.3.19"
+tracing = "0.1.41"
+reqwest = { version = "0.12.9", features = ["json", "multipart"] }
+serde = "1.0.215"
+types = { version = "0.1.0", path = "../types" }
+poise.workspace = true
+serde_json = "1.0.133"
