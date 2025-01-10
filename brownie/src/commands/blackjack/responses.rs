@@ -7,7 +7,10 @@ use poise::{
     },
     CreateReply,
 };
-use types::{blackjack::Blackjack, cards::poker::Card};
+use types::{
+    blackjack::{Blackjack, State},
+    cards::poker::Card,
+};
 
 fn final_table_str(bj: &mut Blackjack, deck: &[Card]) -> Result<String, Error> {
     use types::blackjack::RoundResult;
@@ -20,16 +23,14 @@ fn final_table_str(bj: &mut Blackjack, deck: &[Card]) -> Result<String, Error> {
         RoundResult::Draw => {
             content.push_str("Empate\n");
         }
-        RoundResult::Win { state } => {
-            content.push_str("Ganaste la ronda \n");
-        }
-        RoundResult::Lose { bust } => {
-            if bust {
-                content.push_str("Te pasaste de 21\n");
-            } else {
-                content.push_str("Perdiste la ronda\n");
-            }
-        }
+        RoundResult::Win { state } => match state {
+            State::Blackjack => content.push_str("Blackjack\n"),
+            _ => content.push_str("Ganaste la ronda \n"),
+        },
+        RoundResult::Lose { bust } => match bust {
+            true => content.push_str("Te pasaste de 21\n"),
+            false => content.push_str("Perdiste\n"),
+        },
     }
 
     content.push_str(&text);
@@ -135,7 +136,7 @@ pub async fn round_result(
     msg: MessageId,
     deck: &[Card],
 ) -> Result<(), Error> {
-    let text = show_table_str(bj, deck)?;
+    let text = final_table_str(bj, deck)?;
 
     inter
         .edit_followup(
@@ -184,28 +185,6 @@ pub async fn update_followup(
     } else {
         show_table_str(bj, deck)?
     };
-
-    inter
-        .edit_followup(
-            ctx,
-            msg,
-            CreateInteractionResponseFollowup::new()
-                .content(text)
-                .components(comps_bj(ctx, bj).await),
-        )
-        .await?;
-
-    Ok(())
-}
-
-pub async fn new_round(
-    ctx: Context<'_>,
-    bj: &mut Blackjack,
-    inter: &ComponentInteraction,
-    msg: MessageId,
-    deck: &[Card],
-) -> Result<(), Error> {
-    let text = show_table_str(bj, deck)?;
 
     inter
         .edit_followup(

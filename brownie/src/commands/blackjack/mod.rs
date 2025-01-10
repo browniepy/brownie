@@ -8,13 +8,15 @@ use tokio::{
 };
 use types::blackjack::*;
 
+enum Reason {
+    Timeout,
+    Completed,
+}
+
 enum Signal {
-    NextRound {
+    Finish {
         inter: ComponentInteraction,
-    },
-    GameEnd {
-        inter: ComponentInteraction,
-        reason: FinishReason,
+        reason: Reason,
     },
     Tick,
 }
@@ -76,25 +78,23 @@ pub async fn blackjack(ctx: Context<'_>, amount: Option<String>) -> Result<(), E
                         bj.decrement_timeout();
 
                         if bj.is_timeout() {
-                            tx.send(Signal::GameEnd {
+                            tx.send(Signal::Finish {
                                 inter: last_inter.clone().unwrap(),
-                                reason: FinishReason::Timeout,
+                                reason: Reason::Timeout,
                             })
                             .await?;
                         }
                     }
                 }
-                Signal::NextRound { inter } => {
-                    let res = bj.round_result();
-                    bj.set_last_event(res);
 
-                    bj.clear_hands();
-                    bj.deal_cards(&mut write.deck);
-                    responses::new_round(ctx, &mut bj, &inter, msg.id, &write.deck).await?;
-                }
-                Signal::GameEnd { inter, reason } => {
-                    println!("Game end");
-                    rx.close();
+                Signal::Finish { inter, reason } => {
+                    match reason {
+                        Reason::Timeout => {}
+                        Reason::Completed => {
+                            responses::round_result(ctx, &mut bj, &inter, msg.id, &write.deck)
+                                .await?;
+                        }
+                    }
                     return Ok(());
                 }
             },
@@ -110,12 +110,14 @@ pub async fn blackjack(ctx: Context<'_>, amount: Option<String>) -> Result<(), E
 
                         if bj.player.is_bust() {
                             sleep(Duration::from_secs(1)).await;
-
-                            tx.send(Signal::NextRound {
-                                inter: inter.clone(),
-                            })
-                            .await?;
                         }
+
+                        let result = bj.round_result();
+                        tx.send(Signal::Finish {
+                            inter: inter.clone(),
+                            reason: Reason::Completed,
+                        })
+                        .await?;
                     }
 
                     if inter.data.custom_id == format!("{}_stand", ctx.id()) {
@@ -132,15 +134,14 @@ pub async fn blackjack(ctx: Context<'_>, amount: Option<String>) -> Result<(), E
                             sleep(Duration::from_secs(1)).await;
                         }
 
-                        println!("Dealer hand value: {}", bj.dealer.hand_value(false));
-
-                        tx.send(Signal::NextRound {
+                        let result = bj.round_result();
+                        tx.send(Signal::Finish {
                             inter: inter.clone(),
+                            reason: Reason::Completed,
                         })
                         .await?;
                     }
                 } else {
-                    // TODO: not your interaction message
                 }
             }
         }

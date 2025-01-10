@@ -8,8 +8,7 @@ use poise::serenity_prelude::User;
 
 pub enum FinishReason {
     Timeout,
-    FinalRound,
-    PlayerLeave,
+    Completed { result: RoundResult },
 }
 
 pub enum RoundResult {

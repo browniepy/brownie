@@ -58,6 +58,13 @@ pub fn get(
         })
 }
 
+use std::path::PathBuf;
+
+fn project_root() -> PathBuf {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    PathBuf::from(manifest_dir)
+}
+
 pub fn read_ftl() -> Result<Translations, Error> {
     fn read_single_ftl(path: &std::path::Path) -> Result<(String, FluentBundle), Error> {
         // Extract locale from filename
@@ -80,10 +87,23 @@ pub fn read_ftl() -> Result<Translations, Error> {
         Ok((locale.to_string(), bundle))
     }
 
+    let root = project_root();
+    let translations_dir = root.join("translations");
+
     Ok(Translations {
-        main: read_single_ftl("translations/en-US.ftl".as_ref())?.1,
-        other: std::fs::read_dir("translations")?
-            .map(|file| read_single_ftl(&file?.path()))
+        main: read_single_ftl(&translations_dir.join("en-US.ftl"))?.1,
+        other: std::fs::read_dir(translations_dir)?
+            .filter_map(|file| match file {
+                Ok(file) => {
+                    let path = file.path();
+                    if path.extension().map_or(false, |ext| ext == "ftl") {
+                        Some(read_single_ftl(&path))
+                    } else {
+                        None
+                    }
+                }
+                Err(_) => None,
+            })
             .collect::<Result<_, _>>()?,
     })
 }
