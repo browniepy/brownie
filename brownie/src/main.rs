@@ -42,7 +42,7 @@ pub async fn cache(ctx: Context<'_>, id: UserId) {
             tracing::info!("cached {}", user.name);
 
             Member::builder(id.into())
-                .build(&data.pool.clone())
+                .build(&data.pool)
                 .await
                 .unwrap()
                 .into()
