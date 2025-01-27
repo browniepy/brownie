@@ -4,8 +4,10 @@ use types::cards::poker::Card;
 
 use crate::{
     models::{ItemInventory, JobModel, MemberModel, Role, StatModel},
+    structs::Gamble,
     ErrorT,
 };
+
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
@@ -22,6 +24,7 @@ pub struct Member {
     pub job: Option<JobModel>,
     pub stats: Vec<StatModel>,
     pub deck: Vec<Card>,
+    pub gamble: Gamble,
 }
 
 impl Member {
@@ -39,6 +42,7 @@ impl Member {
             job: None,
             stats: Vec::new(),
             deck: Vec::new(),
+            gamble: Gamble::None,
         }
     }
 
@@ -113,7 +117,20 @@ impl Member {
             job,
             stats: statistics,
             deck: Card::standart_deck(),
+            gamble: self.gamble,
         })
+    }
+
+    pub fn set_gamble(&mut self, gamble: Gamble) {
+        self.gamble = gamble
+    }
+
+    pub fn reset_gamble(&mut self) {
+        self.gamble = Gamble::None
+    }
+
+    pub fn in_gamble(&self) -> bool {
+        self.gamble == Gamble::None
     }
 
     pub fn reload_deck(&mut self) {
