@@ -27,6 +27,13 @@ oldmaid = oldmaid
     .amount = cantidad
     .amount-description = cantidad de dinero para apostar
 
+contradiction = contradiction
+    .description = juego de contradicción
+    .user = usuario
+    .user-description = usuario rival de la apuesta
+    .amount = cantidad
+    .amount-description = cantidad de la apuesta
+
 # command messages
 
 balance-self =
@@ -191,3 +198,84 @@ work-referee = Ganaste ${ $amount } por presidir una apuesta
 work-waiter = Serviste en un maid café y ganaste { $amount }
 work-concierge = Limpiaste una habitación y ganaste { $amount }
 work-fighter = Ganaste ${ $amount } en un torneo de lucha
+
+# Contradiction
+
+fround = 1era
+sround = 2da
+tround = 3era
+
+fgame = 1er
+sgame = 2do
+tgame = 3er
+
+iron = Hierro
+wood = Madera
+rubber = Caucho
+
+
+contradict-open =
+    Apuesta Kakerou abierta
+
+
+gun-iron =
+    { $defender } desvió el disparo de { $attacker }
+    gracias al Escudo de { iron }
+
+gun-wood-rubber =
+    { $defender } no pudo detener el disparo
+    por usar el Escudo de { $material }
+
+katana-wood =
+    { $defender } fue cortado por Katana
+    por usar el Escudo de { wood }
+
+katana-rubber =
+    { $defender } fue cortado levemente por Katana
+    usando el Escudo de { rubber }
+
+katana-iron =
+    { $defender } detuvo el ataque de Katana
+    con el Escudo de { iron }
+
+taser-iron =
+    { $defender } recibió una Descarga fuerte
+    por usar el Escudo de { iron }
+
+taser-wood =
+    { $defender } apenas sintió la Descarga
+    gracias al Escudo de { wood }
+
+taser-rubber =
+    { $defender } bloqueó la Descarga
+    gracias al Escudo de { rubber }
+
+
+first-round-info =
+    { $shields } elige los Escudos
+    y { $weapons } las Espadas
+
+
+choose-phase =
+    Hora de elegir los Escudos y Espadas
+
+bet-phase =
+    Objetos elegidos
+    Tiempo para hacer sus apuestas de bios
+
+bet-info =
+    Las apuestas fueron
+    { $a } { $a-bios } bios, { $b } { $b-bios } bios
+
+
+contradict-end =
+    { $loser } acabó saliéndose de la línea
+    el ganador es { $winner }
+
+
+bet-again =
+    Por favor, apuesten sus bios otra vez
+    no pueden apostar lo mismo
+
+invalid-bet =
+    Esa cantidad de bios no es válida
