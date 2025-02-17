@@ -34,6 +34,34 @@ contradiction = contradiction
     .amount = cantidad
     .amount-description = cantidad de la apuesta
 
+# buttons
+
+accept = Aceptar
+decline = Declinar
+join = Entrar
+choose = Elegir objeto
+bet = Apostar
+
+# errors
+not-for-you =
+    Este botón no es para ti
+
+declined-game =
+    Apuesta rechazada
+
+
+winner-message =
+    Mensaje del ganador:
+    { $message }
+
+
+how-many-bios =
+    Cuántos bios quieres apostar?
+
+your-bios =
+    Tienes { $amount } bios disponibles
+
+
 # command messages
 
 balance-self =
@@ -208,47 +236,59 @@ tround = 3era
 fgame = 1er
 sgame = 2do
 tgame = 3er
+fogame = 4to
 
 iron = Hierro
 wood = Madera
 rubber = Caucho
 
+gun = Pistola
+katana = Katana
+taser = Taser
+
+
+round-info =
+    { $gnumber } juego, { $rnumber } ronda
+
 
 contradict-open =
-    Apuesta Kakerou abierta
+    Apuesta abierta
+
+contradict-proposal =
+    Apuesta para { $user }
 
 
 gun-iron =
     { $defender } desvió el disparo de { $attacker }
-    gracias al Escudo de { iron }
+    Gracias al Escudo de { iron }
 
 gun-wood-rubber =
     { $defender } no pudo detener el disparo
-    por usar el Escudo de { $material }
+    Por usar el Escudo de { $material }
 
 katana-wood =
     { $defender } fue cortado por Katana
-    por usar el Escudo de { wood }
+    Por usar el Escudo de { wood }
 
 katana-rubber =
     { $defender } fue cortado levemente por Katana
-    usando el Escudo de { rubber }
+    Usando el Escudo de { rubber }
 
 katana-iron =
     { $defender } detuvo el ataque de Katana
-    con el Escudo de { iron }
+    Con el Escudo de { iron }
 
 taser-iron =
     { $defender } recibió una Descarga fuerte
-    por usar el Escudo de { iron }
+    Por usar el Escudo de { iron }
 
 taser-wood =
     { $defender } apenas sintió la Descarga
-    gracias al Escudo de { wood }
+    Gracias al Escudo de { wood }
 
 taser-rubber =
     { $defender } bloqueó la Descarga
-    gracias al Escudo de { rubber }
+    Gracias al Escudo de { rubber }
 
 
 first-round-info =
@@ -256,26 +296,34 @@ first-round-info =
     y { $weapons } las Espadas
 
 
+attacker-choose =
+    Elige una espada
+
+defender-choose =
+    Elige un escudo
+
+
 choose-phase =
     Hora de elegir los Escudos y Espadas
 
 bet-phase =
     Objetos elegidos
-    Tiempo para hacer sus apuestas de bios
+    Tiempo de hacer sus apuestas de bios
+
+last-round =
+    Usando los dos objetos restantes
 
 bet-info =
     Las apuestas fueron
-    { $a } { $a-bios } bios, { $b } { $b-bios } bios
-
+    { $a } { $aBios } bios, { $b } { $bBios } bios
 
 contradict-end =
     { $loser } acabó saliéndose de la línea
-    el ganador es { $winner }
-
+    El ganador es { $winner }
 
 bet-again =
     Por favor, apuesten sus bios otra vez
-    no pueden apostar lo mismo
+    Ambos apostaron { $amount } bios
 
 invalid-bet =
     Esa cantidad de bios no es válida
