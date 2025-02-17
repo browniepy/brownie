@@ -1,6 +1,8 @@
+use ::types::Rooms;
 pub use database::{structs::Member, Cache, PgPool};
 pub use poise::serenity_prelude as serenity;
 use serenity::UserId;
+
 pub use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
@@ -19,6 +21,7 @@ pub struct Data {
     pub pool: PgPool,
     pub members: Cache<UserId, Arc<RwLock<Member>>>,
     pub translations: Translations,
+    pub rooms: Rooms,
 }
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -75,6 +78,19 @@ pub async fn get_member(ctx: Context<'_>, id: UserId) -> Result<Arc<RwLock<Membe
             cache(ctx, id).await;
 
             Ok(data.members.get(id.as_ref()).await.unwrap())
+        }
+    }
+}
+
+#[derive(poise::ChoiceParameter)]
+pub enum Game {
+    Contradict,
+}
+
+impl std::fmt::Display for Game {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Game::Contradict => write!(f, "Contradict"),
         }
     }
 }
