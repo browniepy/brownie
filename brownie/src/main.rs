@@ -1,5 +1,7 @@
-use ::types::Rooms;
-pub use database::{structs::Member, Cache, PgPool};
+use database::structs::{Member, System};
+pub use database::{Cache, PgPool};
+
+use inflector::Inflector;
 pub use poise::serenity_prelude as serenity;
 use serenity::UserId;
 
@@ -14,6 +16,9 @@ pub mod commands;
 pub mod mpsc_data;
 pub mod types;
 
+pub mod helpers;
+pub use helpers::*;
+
 mod parser;
 pub use parser::Parse;
 
@@ -21,7 +26,7 @@ pub struct Data {
     pub pool: PgPool,
     pub members: Cache<UserId, Arc<RwLock<Member>>>,
     pub translations: Translations,
-    pub rooms: Rooms,
+    pub system: Cache<(), System>,
 }
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -35,62 +40,64 @@ async fn main() -> Result<(), Error> {
     client.start().await.map_err(Into::into)
 }
 
-pub async fn cache(ctx: Context<'_>, id: UserId) {
-    let data = ctx.data();
+use futures::{Stream, StreamExt};
 
-    data.members
-        .entry_by_ref(id.as_ref())
-        .or_insert_with(async {
-            let user = id.to_user(ctx).await.unwrap();
-            tracing::info!("cached {}", user.name);
+pub async fn debts_auto<'a>(ctx: Context<'_>, partial: &'a str) -> impl Stream<Item = String> + 'a {
+    let player = helpers::get_member(ctx, ctx.author().id).await.unwrap();
+    let read = player.read().await;
 
-            Member::builder(id.into())
-                .build(&data.pool)
-                .await
-                .unwrap()
-                .into()
+    let mut debt_users = Vec::new();
+
+    for id in read.get_debt_users().iter() {
+        let name = ctx
+            .http()
+            .get_user(UserId::new(*id as u64))
+            .await
+            .unwrap()
+            .display_name()
+            .to_title_case();
+        debt_users.push(name);
+    }
+
+    if debt_users.is_empty() {
+        debt_users.push(String::from("Empty"))
+    }
+
+    futures::stream::iter(debt_users)
+        .filter(move |name| {
+            futures::future::ready(name.to_lowercase().contains(&partial.to_lowercase()))
         })
-        .await;
+        .map(|name| name.to_string())
 }
 
-pub async fn refresh_cache(ctx: Context<'_>, id: UserId) {
-    let data = ctx.data();
+pub async fn items_auto<'a>(ctx: Context<'_>, partial: &'a str) -> impl Stream<Item = String> + 'a {
+    let player = helpers::get_member(ctx, ctx.author().id).await.unwrap();
+    let read = player.read().await;
 
-    let entry = data.members.get(id.as_ref()).await;
-
-    if entry.is_some() {
-        data.members.remove(id.as_ref()).await;
-    }
-
-    cache(ctx, id).await;
-}
-
-pub async fn get_member(ctx: Context<'_>, id: UserId) -> Result<Arc<RwLock<Member>>, Error> {
-    let data = ctx.data();
-
-    let member_entry = data.members.get(id.as_ref()).await;
-
-    match member_entry {
-        Some(member) => Ok(member),
-        None => {
-            ctx.defer().await?;
-
-            cache(ctx, id).await;
-
-            Ok(data.members.get(id.as_ref()).await.unwrap())
-        }
-    }
+    futures::stream::iter(
+        read.clone()
+            .inventory
+            .values()
+            .map(|item| item.name.clone().unwrap())
+            .collect::<Vec<_>>(),
+    )
+    .filter(move |name| {
+        futures::future::ready(name.to_lowercase().contains(&partial.to_lowercase()))
+    })
+    .map(|name| name.to_string())
 }
 
 #[derive(poise::ChoiceParameter)]
 pub enum Game {
     Contradict,
+    NimTypeZero,
 }
 
 impl std::fmt::Display for Game {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Game::Contradict => write!(f, "Contradict"),
+            Game::NimTypeZero => write!(f, "Nim Type Zero"),
         }
     }
 }
