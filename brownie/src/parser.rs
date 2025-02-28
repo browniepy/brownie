@@ -1,5 +1,6 @@
-use crate::{get_member, Context, Error};
+use crate::{helpers::get_member, Context, Error};
 use poise::serenity_prelude::UserId;
+use types::dices::Selection;
 
 pub struct Parse;
 
@@ -46,5 +47,49 @@ impl Parse {
                 }
             }
         })
+    }
+
+    pub fn dice_choice(choice: String) -> Result<Selection, Error> {
+        let result = match choice.to_lowercase().as_str() {
+            "pair" => Selection::Pair,
+            "unpair" => Selection::Unpair,
+            "p" => Selection::Pair,
+            "u" => Selection::Unpair,
+            _ => {
+                return Err("choice must be pair or unpair".into());
+            }
+        };
+
+        Ok(result)
+    }
+
+    pub fn dice_choice_num(choice: String) -> Result<i32, Error> {
+        let result = choice.parse::<i32>()?;
+
+        if !(2..=12).contains(&result) {
+            return Err("number must be between 2 and 12".into());
+        }
+
+        Ok(result)
+    }
+
+    pub fn choice_kind(choice: String) -> ChoiceKind {
+        let parse_num = choice.parse::<i32>();
+
+        match parse_num {
+            Ok(_) => ChoiceKind::Number,
+            Err(_) => ChoiceKind::String,
+        }
+    }
+}
+
+pub enum ChoiceKind {
+    String,
+    Number,
+}
+
+impl ChoiceKind {
+    pub fn is_num(&self) -> bool {
+        matches!(self, ChoiceKind::Number)
     }
 }
