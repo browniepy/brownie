@@ -6,27 +6,25 @@ pub use poise::serenity_prelude as serenity;
 use serenity::UserId;
 
 pub use std::{sync::Arc, time::Duration};
-use tokio::sync::RwLock;
+pub use tokio::sync::{Mutex, RwLock};
 
 pub mod translation;
-pub use translation::{read_ftl, Translations};
+pub use translation::*;
 
 mod client;
 pub mod commands;
-pub mod mpsc_data;
-pub mod types;
 
 pub mod helpers;
 pub use helpers::*;
 
 mod parser;
-pub use parser::Parse;
+pub use parser::*;
 
 pub struct Data {
     pub pool: PgPool,
     pub members: Cache<UserId, Arc<RwLock<Member>>>,
     pub translations: Translations,
-    pub system: Cache<(), System>,
+    pub system: Cache<(), Arc<Mutex<System>>>,
 }
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -91,6 +89,10 @@ pub async fn items_auto<'a>(ctx: Context<'_>, partial: &'a str) -> impl Stream<I
 pub enum Game {
     Contradict,
     NimTypeZero,
+    BlackJack,
+    RussianRoulette,
+    Dices,
+    Falaris,
 }
 
 impl std::fmt::Display for Game {
@@ -98,6 +100,10 @@ impl std::fmt::Display for Game {
         match self {
             Game::Contradict => write!(f, "Contradict"),
             Game::NimTypeZero => write!(f, "Nim Type Zero"),
+            Game::BlackJack => write!(f, "BlackJack"),
+            Game::RussianRoulette => write!(f, "Rr"),
+            Game::Dices => write!(f, "Dices"),
+            Game::Falaris => write!(f, "Falaris"),
         }
     }
 }
