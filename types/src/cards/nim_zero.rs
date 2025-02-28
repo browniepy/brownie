@@ -20,7 +20,7 @@ impl Card {
         deck
     }
 
-    pub fn value(&self) -> u8 {
+    pub fn value(&self) -> i32 {
         match *self {
             Self::Zero => 0,
             Self::One => 1,
