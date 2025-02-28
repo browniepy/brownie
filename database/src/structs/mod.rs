@@ -1,5 +1,5 @@
 mod member;
-mod system;
+pub mod system;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Gamble {
@@ -9,4 +9,4 @@ pub enum Gamble {
 }
 
 pub use member::Member;
-pub use system::{Base, Blackjack, PlayerId, TableId};
+pub use system::System;

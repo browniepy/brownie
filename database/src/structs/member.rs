@@ -3,7 +3,7 @@ use sqlx::PgPool;
 use types::cards::poker::Card;
 
 use crate::{
-    models::{ItemInventory, JobModel, MemberModel, Role, StatModel},
+    models::{Debt, ItemInventory, JobModel, MemberModel, Role, StatModel},
     structs::Gamble,
     ErrorT,
 };
@@ -25,6 +25,7 @@ pub struct Member {
     pub stats: Vec<StatModel>,
     pub deck: Vec<Card>,
     pub gamble: Gamble,
+    pub debt: Vec<Debt>,
 }
 
 impl Member {
@@ -43,6 +44,7 @@ impl Member {
             stats: Vec::new(),
             deck: Vec::new(),
             gamble: Gamble::None,
+            debt: Vec::new(),
         }
     }
 
@@ -59,7 +61,6 @@ impl Member {
             "SELECT
             balance,
             points,
-            level,
             roles AS \"roles: Vec<Role> \",
             referee_range,
             personal_referee,
@@ -90,13 +91,24 @@ impl Member {
             "SELECT job.name,
             job.description,
             job.salary_range AS \"salary_range: Vec<i32>\",
-            job.required_role AS \"required_role: Role\"
+            job.required_role AS \"required_role: Role\",
+            job.required_level,
+            job.cooldown
             FROM job
             INNER JOIN member ON job.name = member.job WHERE member.id = $1",
             self.id
         )
         .fetch_optional(pool)
         .await?;
+
+        let debt = sqlx::query_as!(
+            Debt,
+            "SELECT to_member AS to, amount FROM debs WHERE member = $1;",
+            self.id
+        )
+        .fetch_all(pool)
+        .await
+        .unwrap();
 
         let statistics = sqlx::query_as!(
             StatModel,
@@ -108,7 +120,7 @@ impl Member {
             id: self.id,
             balance: stats.balance,
             inventory: items,
-            level: stats.level,
+            level: self.calculate_level(),
             points: stats.points,
             roles: stats.roles.unwrap_or(Vec::new()),
             personal_referee_id: stats.personal_referee,
@@ -118,7 +130,95 @@ impl Member {
             stats: statistics,
             deck: Card::standart_deck(),
             gamble: self.gamble,
+            debt,
         })
+    }
+
+    pub fn calculate_level(&self) -> i32 {
+        use std::f64;
+        (12.0 * f64::ln(self.points as f64 / 1000.0) + 1.0).floor() as i32
+    }
+
+    pub fn get_work_cooldown(&self) -> i32 {
+        self.job.clone().unwrap_or_default().cooldown
+    }
+
+    pub async fn get_mut_statistics(&mut self, pool: &PgPool, game: &str) -> &mut StatModel {
+        // get or create a new StatModel
+        if self.stats.iter_mut().any(|x| x.game == game) {
+            self.stats.iter_mut().find(|x| x.game == game).unwrap()
+        } else {
+            sqlx::query!(
+                "INSERT INTO statistics (member, game) VALUES ($1, $2)",
+                self.id,
+                game
+            )
+            .execute(pool)
+            .await
+            .unwrap();
+
+            let stat = sqlx::query_as!(
+                StatModel,
+                "SELECT game, victories, defeats, victory_text, defeat_text FROM statistics WHERE member = $1 AND game = $2",
+                self.id,
+                game
+            ).fetch_one(pool).await.unwrap();
+
+            self.stats.push(stat);
+            self.stats.last_mut().unwrap()
+        }
+    }
+
+    // return a vec with id of the members that the user has debt with
+    pub fn get_debt_users(&self) -> Vec<i64> {
+        self.debt.iter().map(|x| x.to.unwrap()).collect()
+    }
+
+    pub async fn get_debt(&self, id: i64) -> Option<&Debt> {
+        self.debt.iter().find(|x| x.to == Some(id))
+    }
+
+    pub async fn set_debt(&mut self, id: i64, amount: i32, pool: &PgPool) -> Result<(), ErrorT> {
+        let debt = self.debt.iter_mut().find(|x| x.to == Some(id));
+
+        if let Some(debt) = debt {
+            sqlx::query!(
+                "UPDATE debs SET amount = amount + $1 WHERE member = $2 AND to_member = $3",
+                amount,
+                self.id,
+                id
+            )
+            .execute(pool)
+            .await
+            .unwrap();
+
+            debt.amount = Some(debt.amount.unwrap() + amount);
+        } else {
+            sqlx::query!(
+                "INSERT INTO debs (member, to_member, amount) VALUES ($1, $2, $3)",
+                self.id,
+                id,
+                amount
+            )
+            .execute(pool)
+            .await
+            .unwrap();
+
+            self.debt.push(Debt {
+                to: Some(id),
+                amount: Some(amount),
+            });
+        }
+
+        Ok(())
+    }
+
+    pub async fn get_statistics(&self, game: &str) -> Option<&StatModel> {
+        if let Some(stat) = self.stats.iter().find(|x| x.game == game) {
+            Some(stat)
+        } else {
+            None
+        }
     }
 
     pub fn set_gamble(&mut self, gamble: Gamble) {
@@ -156,6 +256,24 @@ impl Member {
         Ok(())
     }
 
+    pub async fn get_victory_text(&self, game: &str, pool: &PgPool) -> Option<String> {
+        let stat = self.get_stat(game);
+        if let Some(stat) = stat {
+            return stat.victory_text.clone();
+        }
+
+        let stat = sqlx::query!(
+            "SELECT victory_text FROM statistics WHERE member = $1 AND game = $2",
+            self.id,
+            game
+        )
+        .fetch_one(pool)
+        .await
+        .ok()?;
+
+        stat.victory_text
+    }
+
     pub async fn change_victory_text(
         &mut self,
         game: String,
@@ -171,11 +289,7 @@ impl Member {
         )
         .execute(pool)
         .await?;
-        self.stats
-            .iter_mut()
-            .find(|x| x.game == game)
-            .unwrap()
-            .victory_text = text;
+        self.get_mut_statistics(pool, &game).await.victory_text = text;
         Ok(())
     }
 
@@ -194,11 +308,7 @@ impl Member {
         )
         .execute(pool)
         .await?;
-        self.stats
-            .iter_mut()
-            .find(|x| x.game == game)
-            .unwrap()
-            .defeat_text = text;
+
         Ok(())
     }
 
@@ -211,11 +321,7 @@ impl Member {
         )
         .execute(pool)
         .await?;
-        self.stats
-            .iter_mut()
-            .find(|x| x.game == game)
-            .unwrap()
-            .victories += 1;
+        self.get_mut_statistics(pool, &game).await.victories += 1;
         Ok(())
     }
 
@@ -228,11 +334,7 @@ impl Member {
         )
         .execute(pool)
         .await?;
-        self.stats
-            .iter_mut()
-            .find(|x| x.game == game)
-            .unwrap()
-            .defeats += 1;
+        self.get_mut_statistics(pool, &game).await.defeats += 1;
         Ok(())
     }
 
@@ -337,6 +439,20 @@ impl Member {
         Ok(())
     }
 
+    pub async fn add_points(&mut self, amount: i32, pool: &PgPool) -> Result<(), ErrorT> {
+        sqlx::query!(
+            "UPDATE member SET points = points + $1 WHERE id = $2",
+            amount,
+            self.id
+        )
+        .execute(pool)
+        .await?;
+
+        self.points += amount;
+
+        Ok(())
+    }
+
     pub async fn add_balalance(&mut self, amount: i32, pool: &PgPool) -> Result<(), ErrorT> {
         sqlx::query!(
             "UPDATE member SET balance = balance + $1 WHERE id = $2",
@@ -350,17 +466,15 @@ impl Member {
     }
 
     pub async fn work(&mut self, pool: &PgPool) -> Result<i32, ErrorT> {
-        if self.job.is_none() {
-            let num = rand::thread_rng().gen_range(600..1200);
-            return Ok(num);
-        }
+        let num = if self.job.is_none() {
+            rand::thread_rng().gen_range(200..800)
+        } else {
+            let job = self.job.as_ref().unwrap();
+            let range = job.salary_range.as_ref().unwrap();
+            rand::thread_rng().gen_range(range[0]..range[1])
+        };
 
-        let job = self.job.as_ref().unwrap();
-        let range = job.salary_range.as_ref().unwrap();
-
-        let num = rand::thread_rng().gen_range(range[0]..range[1]);
         self.add_balalance(num, pool).await?;
-
         Ok(num)
     }
 }
