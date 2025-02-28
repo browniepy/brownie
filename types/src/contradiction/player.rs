@@ -2,6 +2,7 @@ use inflector::Inflector;
 use itertools::Itertools;
 use poise::serenity_prelude::{Message, User, UserId};
 
+#[derive(PartialEq)]
 pub enum Role {
     Defender,
     Attacker,
@@ -34,7 +35,7 @@ impl State {
 pub struct Player {
     pub id: UserId,
     pub name: String,
-    pub bios: usize,
+    pub bios: isize,
     pub current_bet: usize,
     pub role: Role,
     pub states: Vec<State>,
@@ -108,7 +109,7 @@ impl Player {
     }
 
     pub fn confirm_bet(&mut self) {
-        self.bios -= self.current_bet;
+        self.bios -= self.current_bet as isize;
     }
 
     pub fn reset_bet(&mut self) {

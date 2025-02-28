@@ -33,14 +33,34 @@ pub enum Reaction {
     Stopped { weapon: Weapon, shield: Shield },
 }
 
+pub struct RoundInfo {
+    pub game: usize,
+    pub round: usize,
+}
+
+impl RoundInfo {
+    fn new() -> Self {
+        Self { game: 1, round: 1 }
+    }
+
+    pub fn setup_next(&mut self) {
+        self.round = 1;
+        self.game += 1;
+    }
+
+    pub fn add_round(&mut self) {
+        self.round += 1;
+    }
+}
+
 pub struct Contradiction {
     pub players: Vec<Player>,
-    pub round: usize,
     pub weapons: Vec<Weapon>,
     pub shields: Vec<Shield>,
     pub already_bet: Vec<UserId>,
     pub selected_weapon: Option<usize>,
     pub selected_shield: Option<usize>,
+    pub round_info: RoundInfo,
 }
 
 pub trait Battle {
@@ -172,18 +192,16 @@ impl Contradiction {
     pub fn new(players: Vec<Player>) -> Self {
         Self {
             players,
-            round: 1,
             weapons: Weapon::list(),
             shields: Shield::list(),
             already_bet: Vec::with_capacity(2),
             selected_weapon: None,
             selected_shield: None,
+            round_info: RoundInfo::new(),
         }
     }
 
     pub fn setup_next_round(&mut self) {
-        self.round += 1;
-
         self.reset_objects();
         self.invert_roles();
     }
@@ -230,6 +248,21 @@ impl Contradiction {
         self.selected_weapon.is_some() && self.selected_shield.is_some()
     }
 
+    pub fn is_bet_draw(&self) -> bool {
+        let p1 = self.players.first().unwrap();
+        let p2 = self.players.last().unwrap();
+
+        p1.current_bet == p2.current_bet
+    }
+
+    pub fn check_zero_bios(&mut self) {
+        for player in self.players.iter_mut() {
+            if player.bios == 0 {
+                player.current_bet = 0;
+            }
+        }
+    }
+
     pub fn select_weapon(&mut self, index: usize) {
         self.selected_weapon = Some(index);
     }
@@ -270,19 +303,33 @@ impl Contradiction {
     }
 
     pub fn less_bet_player(&mut self) -> &mut Player {
-        self.players
-            .iter_mut()
-            .filter(|player| !self.already_bet.contains(&player.id))
-            .min_by_key(|player| player.current_bet)
-            .unwrap()
+        if self.is_bet_draw() {
+            self.players
+                .iter_mut()
+                .find(|player| player.role == Role::Defender)
+                .unwrap()
+        } else {
+            self.players
+                .iter_mut()
+                .filter(|player| self.already_bet.contains(&player.id))
+                .min_by_key(|player| player.current_bet)
+                .unwrap()
+        }
     }
 
     pub fn greater_bet_player(&mut self) -> &mut Player {
-        self.players
-            .iter_mut()
-            .filter(|player| !self.already_bet.contains(&player.id))
-            .max_by_key(|player| player.current_bet)
-            .unwrap()
+        if self.is_bet_draw() {
+            self.players
+                .iter_mut()
+                .find(|player| player.role == Role::Attacker)
+                .unwrap()
+        } else {
+            self.players
+                .iter_mut()
+                .filter(|player| self.already_bet.contains(&player.id))
+                .max_by_key(|player| player.current_bet)
+                .unwrap()
+        }
     }
 }
 
