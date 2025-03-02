@@ -8,9 +8,9 @@ use poise::{
     },
     CreateReply,
 };
-use types::contradiction::{Contradiction, Level, Player, Reaction, Role};
+use types::contradiction::{Contradiction, Player, Reaction, Role, Shield, Weapon};
 
-use crate::{Context, Error};
+use crate::{translation::translate, Context, Error};
 
 pub fn bet_component(ctx: Context<'_>) -> Vec<CreateActionRow> {
     vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
@@ -18,7 +18,7 @@ pub fn bet_component(ctx: Context<'_>) -> Vec<CreateActionRow> {
         ctx.id()
     ))
     .style(ButtonStyle::Secondary)
-    .label("Apostar")])]
+    .label(translate!(ctx, "bet"))])]
 }
 
 pub fn choose_component(ctx: Context<'_>) -> Vec<CreateActionRow> {
@@ -27,7 +27,7 @@ pub fn choose_component(ctx: Context<'_>) -> Vec<CreateActionRow> {
         ctx.id()
     ))
     .style(ButtonStyle::Secondary)
-    .label("Elegir objeto")])]
+    .label(translate!(ctx, "choose"))])]
 }
 
 pub fn objects_component(
@@ -44,7 +44,11 @@ pub fn objects_component(
             for (index, shield) in contradict.shields.iter().enumerate() {
                 let button = CreateButton::new(format!("{}_object_{}", ctx.id(), index))
                     .style(ButtonStyle::Secondary)
-                    .label(shield.name());
+                    .label(match shield {
+                        Shield::Iron => translate!(ctx, "iron"),
+                        Shield::Rubber => translate!(ctx, "rubber"),
+                        Shield::Wood => translate!(ctx, "wood"),
+                    });
 
                 comps.push(button);
             }
@@ -53,7 +57,11 @@ pub fn objects_component(
             for (index, weapon) in contradict.weapons.iter().enumerate() {
                 let button = CreateButton::new(format!("{}_object_{}", ctx.id(), index))
                     .style(ButtonStyle::Secondary)
-                    .label(weapon.name());
+                    .label(match weapon {
+                        Weapon::Katana => translate!(ctx, "katana"),
+                        Weapon::Taser => translate!(ctx, "taser"),
+                        Weapon::Gun => translate!(ctx, "gun"),
+                    });
 
                 comps.push(button);
             }
@@ -70,16 +78,43 @@ pub async fn start(
     inter: &ComponentInteraction,
     contradict: &Contradiction,
 ) -> Result<(), Error> {
-    let content = "Primera ronda, primer turno\nElijan sus objetos".to_string();
+    let round_info = get_round(ctx, contradict);
+    let content = translate!(ctx, "choose-phase");
 
     inter
         .create_response(
             ctx,
             CreateInteractionResponse::UpdateMessage(
                 CreateInteractionResponseMessage::new()
-                    .content(content)
+                    .content(format!("{}\n{}", round_info, content))
                     .components(choose_component(ctx)),
             ),
+        )
+        .await?;
+
+    Ok(())
+}
+
+pub async fn final_result(
+    ctx: Context<'_>,
+    inter: &ModalInteraction,
+    winner: &str,
+    loser: &str,
+    winner_message: Option<String>,
+) -> Result<(), Error> {
+    let mut content = translate!(ctx, "contradict-end", loser: loser, winner: winner);
+
+    if let Some(winner_message) = winner_message {
+        let message = translate!(ctx, "winner-message", message: winner_message);
+        content.push_str(&format!("\n\n{}", message));
+    }
+
+    inter
+        .create_followup(
+            ctx,
+            CreateInteractionResponseFollowup::new()
+                .content(content)
+                .components(vec![]),
         )
         .await?;
 
@@ -92,7 +127,7 @@ pub async fn bet_phase(
     inter: &ComponentInteraction,
     message: MessageId,
 ) -> Result<(), Error> {
-    let content = "Objetos elegidos\nHagan sus apuestas";
+    let content = translate!(ctx, "bet-phase");
 
     inter
         .edit_followup(
@@ -112,13 +147,14 @@ pub async fn final_bet_phase(
     inter: &ModalInteraction,
     contradict: &Contradiction,
 ) -> Result<Message, Error> {
-    let content = "usando los ultimos objetos restantes\nhagan sus apuestas";
+    let round_info = get_round(ctx, contradict);
+    let content = translate!(ctx, "last-round");
 
     Ok(inter
         .create_followup(
             ctx,
             CreateInteractionResponseFollowup::new()
-                .content(content)
+                .content(format!("{}\n{}", round_info, content))
                 .components(bet_component(ctx)),
         )
         .await?)
@@ -134,10 +170,10 @@ pub async fn bet_modal(
         CreateActionRow::InputText(
             CreateInputText::new(
                 InputTextStyle::Short,
-                "Cuantos bios quieres apostar?",
+                translate!(ctx, "how-many-bios"),
                 "amount",
             )
-            .placeholder(format!("Tienes {} Bios", player.bios)),
+            .placeholder(translate!(ctx, "your-bios", amount: player.bios)),
         ),
     ]);
 
@@ -148,32 +184,55 @@ pub async fn bet_modal(
     Ok(())
 }
 
+pub fn get_round(ctx: Context<'_>, contradict: &Contradiction) -> String {
+    let game = match contradict.round_info.game {
+        1 => translate!(ctx, "fgame"),
+        2 => translate!(ctx, "sgame"),
+        3 => translate!(ctx, "tgame"),
+        _ => translate!(ctx, "fogame"),
+    };
+
+    let round = match contradict.round_info.round {
+        1 => translate!(ctx, "fround"),
+        2 => translate!(ctx, "sround"),
+        _ => translate!(ctx, "tround"),
+    };
+
+    translate!(ctx, "round-info", gnumber: game, rnumber: round)
+}
+
 // new round
 pub async fn new_round(
     ctx: Context<'_>,
     inter: &ModalInteraction,
     contradict: &Contradiction,
 ) -> Result<Message, Error> {
-    let content = format!("ronda nro {}\nelijan sus objetos", contradict.round);
+    let round_info = get_round(ctx, contradict);
+    let content = translate!(ctx, "choose-phase");
 
     Ok(inter
         .create_followup(
             ctx,
             CreateInteractionResponseFollowup::new()
-                .content(content)
+                .content(format!("{}\n{}", round_info, content))
                 .components(choose_component(ctx)),
         )
         .await?)
 }
 
-pub async fn new_turn(ctx: Context<'_>, inter: &ModalInteraction) -> Result<Message, Error> {
-    let content = "nueva ronda elijan algo v:";
+pub async fn new_turn(
+    ctx: Context<'_>,
+    inter: &ModalInteraction,
+    contradict: &Contradiction,
+) -> Result<Message, Error> {
+    let round_info = get_round(ctx, contradict);
+    let content = translate!(ctx, "choose-phase");
 
     Ok(inter
         .create_followup(
             ctx,
             CreateInteractionResponseFollowup::new()
-                .content(content)
+                .content(format!("{}\n{}", round_info, content))
                 .components(choose_component(ctx)),
         )
         .await?)
@@ -188,9 +247,9 @@ pub async fn choose_object(
     let player = contradict.get_player(inter.user.id).unwrap();
 
     let content = match player.role {
-        Role::Defender => "Elige un escudo",
-        Role::Attacker => "Elige un arma",
-        Role::None => "error",
+        Role::Defender => translate!(ctx, "defender-choose"),
+        Role::Attacker => translate!(ctx, "attacker-choose"),
+        Role::None => "error".to_string(),
     };
 
     Ok(inter
@@ -204,6 +263,43 @@ pub async fn choose_object(
         .await?)
 }
 
+fn get_comparison_result(
+    ctx: Context<'_>,
+    defender: &str,
+    attacker: &str,
+    reaction: Reaction,
+) -> String {
+    match reaction {
+        Reaction::Deviated => translate!(ctx, "gun-iron", defender: defender, attacker: attacker),
+
+        Reaction::Tased { shield, level } => match shield {
+            Shield::Iron => translate!(ctx, "taser-iron", defender: defender),
+            _ => translate!(ctx, "taser-wood", defender: defender),
+        },
+
+        Reaction::Stopped { weapon, shield } => match (weapon, shield) {
+            (Weapon::Katana, Shield::Iron) => translate!(ctx, "katana-iron", defender: defender),
+            (Weapon::Taser, Shield::Rubber) => translate!(ctx, "taser-rubber", defender: defender),
+            _ => String::from("None"),
+        },
+
+        Reaction::Shot { shield } => {
+            let shield = match shield {
+                Shield::Rubber => translate!(ctx, "rubber"),
+                _ => translate!(ctx, "wood"),
+            };
+
+            translate!(ctx, "gun-wood-rubber", defender: defender, material: shield)
+        }
+
+        Reaction::Pierced { shield, level } => match shield {
+            Shield::Rubber => translate!(ctx, "katana-rubber", defender: defender),
+            Shield::Wood => translate!(ctx, "katana-wood", defender: defender),
+            Shield::Iron => translate!(ctx, "katana-iron", defender: defender),
+        },
+    }
+}
+
 pub async fn comparison(
     ctx: Context<'_>,
     inter: &ModalInteraction,
@@ -211,63 +307,22 @@ pub async fn comparison(
     contradict: &mut Contradiction,
     reaction: Reaction,
 ) -> Result<(), Error> {
-    let player = contradict.less_bet_player();
+    let defender = contradict.less_bet_player().name.clone();
+    let attacker = contradict.greater_bet_player().name.clone();
 
-    let content = match reaction {
-        Reaction::Deviated => {
-            format!("{} desvió la bala con escudo de hierro", player.name)
-        }
-        Reaction::Tased { shield, level } => {
-            let level = match level {
-                Level::Low => "leve",
-                Level::Medium => "media",
-                Level::High => "fuerte",
-            };
+    let content = get_comparison_result(ctx, &defender, &attacker, reaction);
 
-            format!(
-                "{} recibió una descarga eléctrica {} con escudo de {}",
-                player.name,
-                level,
-                shield.name()
-            )
-        }
-        Reaction::Stopped { weapon, shield } => {
-            format!(
-                "{} detuvo el ataque con {} usando escudo de {}",
-                player.name,
-                weapon.name(),
-                shield.name()
-            )
-        }
-        Reaction::Shot { shield } => {
-            format!(
-                "{} recibió un disparo con escudo de {}",
-                player.name,
-                shield.name()
-            )
-        }
-        Reaction::Pierced { shield, level } => {
-            let level = match level {
-                Level::Low => "leve",
-                Level::Medium => "media",
-                Level::High => "fuerte",
-            };
+    let a = contradict.players.first().unwrap();
+    let b = contradict.players.last().unwrap();
 
-            format!(
-                "{} fue cortado {} con escudo de {}",
-                player.name,
-                level,
-                shield.name()
-            )
-        }
-    };
+    let sub_content = translate!(ctx, "bet-info", a: &a.name, aBios: a.current_bet, b: &b.name, bBios: b.current_bet);
 
     inter
         .edit_followup(
             ctx,
             message,
             CreateInteractionResponseFollowup::new()
-                .content(content)
+                .content(format!("{}\n\n{}", content, sub_content))
                 .components(vec![]),
         )
         .await?;
@@ -277,19 +332,15 @@ pub async fn comparison(
 
 // join or accept messages
 pub async fn accept(ctx: Context<'_>, user: &User, bet: i32) -> Result<Message, Error> {
-    let content = format!(
-        "Apuesta para {}\nDinero apostado {}",
-        user.name.to_title_case(),
-        bet
-    );
+    let content = translate!(ctx, "contradict-proposal", user: user.name.to_title_case());
 
     let components = vec![CreateActionRow::Buttons(vec![
         CreateButton::new(format!("{}_accept", ctx.id()))
             .style(ButtonStyle::Secondary)
-            .label("Aceptar"),
+            .label(translate!(ctx, "accept")),
         CreateButton::new(format!("{}_decline", ctx.id()))
             .style(ButtonStyle::Secondary)
-            .label("Declinar"),
+            .label(translate!(ctx, "decline")),
     ])];
 
     Ok(ctx
@@ -304,14 +355,14 @@ pub async fn accept(ctx: Context<'_>, user: &User, bet: i32) -> Result<Message, 
 }
 
 pub async fn join(ctx: Context<'_>, bet: i32) -> Result<Message, Error> {
-    let content = format!("Apuesta abierta\nDinero apostado {}", bet);
+    let content = translate!(ctx, "contradict-open");
 
     let components = vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
         "{}_join",
         ctx.id()
     ))
     .style(ButtonStyle::Secondary)
-    .label("Unirse")])];
+    .label(translate!(ctx, "join"))])];
 
     Ok(ctx
         .send(
@@ -325,7 +376,7 @@ pub async fn join(ctx: Context<'_>, bet: i32) -> Result<Message, Error> {
 }
 
 pub async fn declined(ctx: Context<'_>, inter: &ComponentInteraction) -> Result<(), Error> {
-    let content = "Apuesta rechazada";
+    let content = translate!(ctx, "declined-game");
 
     inter
         .create_response(
@@ -334,6 +385,62 @@ pub async fn declined(ctx: Context<'_>, inter: &ComponentInteraction) -> Result<
                 CreateInteractionResponseMessage::new()
                     .content(content)
                     .components(vec![]),
+            ),
+        )
+        .await?;
+
+    Ok(())
+}
+
+// error messages
+pub async fn bet_again(
+    ctx: Context<'_>,
+    inter: &ModalInteraction,
+    message: MessageId,
+    amount: usize,
+) -> Result<(), Error> {
+    let content = translate!(ctx, "bet-again", amount: amount);
+
+    inter
+        .edit_followup(
+            ctx,
+            message,
+            CreateInteractionResponseFollowup::new().content(content),
+        )
+        .await?;
+
+    Ok(())
+}
+
+pub async fn incorrect_bet(ctx: Context<'_>, inter: &ModalInteraction) -> Result<(), Error> {
+    let content = translate!(ctx, "invalid-bet");
+
+    inter
+        .create_response(
+            ctx,
+            CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .content(content)
+                    .components(vec![])
+                    .ephemeral(true),
+            ),
+        )
+        .await?;
+
+    Ok(())
+}
+
+pub async fn incorrect_inter(ctx: Context<'_>, inter: &ComponentInteraction) -> Result<(), Error> {
+    let content = translate!(ctx, "not-for-you");
+
+    inter
+        .create_response(
+            ctx,
+            CreateInteractionResponse::UpdateMessage(
+                CreateInteractionResponseMessage::new()
+                    .content(content)
+                    .components(vec![])
+                    .ephemeral(true),
             ),
         )
         .await?;
