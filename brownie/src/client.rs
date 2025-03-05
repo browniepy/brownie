@@ -18,6 +18,7 @@ pub async fn build() -> Result<Client, Error> {
         commands::profile::message(),
         commands::work::work(),
         commands::contradiction::contradiction(),
+        commands::nim::nim(),
         commands::dices::dices(),
         commands::system::shop(),
         commands::system::top(),
@@ -56,7 +57,6 @@ pub async fn build() -> Result<Client, Error> {
         post_command: |ctx| {
             Box::pin(async move {
                 let data = ctx.data();
-
                 let member = crate::get_member(ctx, ctx.author().id).await.unwrap();
                 let mut write = member.write().await;
                 write.add_points(15, &data.pool).await.unwrap();
