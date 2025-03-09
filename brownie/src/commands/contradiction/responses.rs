@@ -1,187 +1,54 @@
-use inflector::Inflector;
+use super::super::CommonButton;
+use crate::{translate, Context, Error};
 use poise::{
     serenity_prelude::{
         ButtonStyle, ComponentInteraction, CreateActionRow, CreateButton, CreateInputText,
         CreateInteractionResponse, CreateInteractionResponseFollowup,
-        CreateInteractionResponseMessage, CreateModal, InputTextStyle, Message, MessageId,
-        ModalInteraction, User,
+        CreateInteractionResponseMessage, CreateModal, InputTextStyle, Mentionable, Message,
+        MessageId, ModalInteraction, User,
     },
     CreateReply,
 };
-use types::contradiction::{Contradiction, Player, Reaction, Role, Shield, Weapon};
+use types::contradiction::{Contradiction, Player, Reaction, Role, ShieldEnum, WeaponEnum};
 
-use crate::{translation::translate, Context, Error};
+struct Button;
 
-pub fn bet_component(ctx: Context<'_>) -> Vec<CreateActionRow> {
-    vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
-        "{}_bet",
-        ctx.id()
-    ))
-    .style(ButtonStyle::Secondary)
-    .label(translate!(ctx, "bet"))])]
-}
+pub struct Response;
 
-pub fn choose_component(ctx: Context<'_>) -> Vec<CreateActionRow> {
-    vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
-        "{}_choose",
-        ctx.id()
-    ))
-    .style(ButtonStyle::Secondary)
-    .label(translate!(ctx, "choose"))])]
-}
+pub struct ModalRes;
 
-pub fn objects_component(
-    ctx: Context<'_>,
-    inter: &ComponentInteraction,
-    contradict: &Contradiction,
-) -> Vec<CreateActionRow> {
-    let mut comps = Vec::new();
+impl ModalRes {
+    pub async fn bet(
+        ctx: Context<'_>,
+        inter: &ComponentInteraction,
+        player: &Player,
+    ) -> Result<(), Error> {
+        let your_bios = if player.bios > 0 {
+            translate!(ctx, "your-bios", amount: player.bios)
+        } else {
+            translate!(ctx, "empty-bios")
+        };
 
-    let player = contradict.get_player(inter.user.id).unwrap();
-
-    match player.role {
-        Role::Defender => {
-            for (index, shield) in contradict.shields.iter().enumerate() {
-                let button = CreateButton::new(format!("{}_object_{}", ctx.id(), index))
-                    .style(ButtonStyle::Secondary)
-                    .label(match shield {
-                        Shield::Iron => translate!(ctx, "iron"),
-                        Shield::Rubber => translate!(ctx, "rubber"),
-                        Shield::Wood => translate!(ctx, "wood"),
-                    });
-
-                comps.push(button);
-            }
-        }
-        Role::Attacker => {
-            for (index, weapon) in contradict.weapons.iter().enumerate() {
-                let button = CreateButton::new(format!("{}_object_{}", ctx.id(), index))
-                    .style(ButtonStyle::Secondary)
-                    .label(match weapon {
-                        Weapon::Katana => translate!(ctx, "katana"),
-                        Weapon::Taser => translate!(ctx, "taser"),
-                        Weapon::Gun => translate!(ctx, "gun"),
-                    });
-
-                comps.push(button);
-            }
-        }
-        Role::None => {}
-    }
-
-    vec![CreateActionRow::Buttons(comps)]
-}
-
-// game start
-pub async fn start(
-    ctx: Context<'_>,
-    inter: &ComponentInteraction,
-    contradict: &Contradiction,
-) -> Result<(), Error> {
-    let round_info = get_round(ctx, contradict);
-    let content = translate!(ctx, "choose-phase");
-
-    inter
-        .create_response(
-            ctx,
-            CreateInteractionResponse::UpdateMessage(
-                CreateInteractionResponseMessage::new()
-                    .content(format!("{}\n{}", round_info, content))
-                    .components(choose_component(ctx)),
-            ),
+        let modal = CreateModal::new(
+            format!("{}_bet", ctx.id()),
+            translate!(ctx, "bet-modal-title"),
         )
-        .await?;
-
-    Ok(())
-}
-
-pub async fn final_result(
-    ctx: Context<'_>,
-    inter: &ModalInteraction,
-    winner: &str,
-    loser: &str,
-    winner_message: Option<String>,
-) -> Result<(), Error> {
-    let mut content = translate!(ctx, "contradict-end", loser: loser, winner: winner);
-
-    if let Some(winner_message) = winner_message {
-        let message = translate!(ctx, "winner-message", message: winner_message);
-        content.push_str(&format!("\n\n{}", message));
-    }
-
-    inter
-        .create_followup(
-            ctx,
-            CreateInteractionResponseFollowup::new()
-                .content(content)
-                .components(vec![]),
-        )
-        .await?;
-
-    Ok(())
-}
-
-// bet phase
-pub async fn bet_phase(
-    ctx: Context<'_>,
-    inter: &ComponentInteraction,
-    message: MessageId,
-) -> Result<(), Error> {
-    let content = translate!(ctx, "bet-phase");
-
-    inter
-        .edit_followup(
-            ctx,
-            message,
-            CreateInteractionResponseFollowup::new()
-                .content(content)
-                .components(bet_component(ctx)),
-        )
-        .await?;
-
-    Ok(())
-}
-
-pub async fn final_bet_phase(
-    ctx: Context<'_>,
-    inter: &ModalInteraction,
-    contradict: &Contradiction,
-) -> Result<Message, Error> {
-    let round_info = get_round(ctx, contradict);
-    let content = translate!(ctx, "last-round");
-
-    Ok(inter
-        .create_followup(
-            ctx,
-            CreateInteractionResponseFollowup::new()
-                .content(format!("{}\n{}", round_info, content))
-                .components(bet_component(ctx)),
-        )
-        .await?)
-}
-
-// bet modal
-pub async fn bet_modal(
-    ctx: Context<'_>,
-    inter: &ComponentInteraction,
-    player: &Player,
-) -> Result<(), Error> {
-    let modal = CreateModal::new(format!("{}_bet", ctx.id()), "Apuesta de Bios").components(vec![
-        CreateActionRow::InputText(
+        .components(vec![CreateActionRow::InputText(
             CreateInputText::new(
                 InputTextStyle::Short,
                 translate!(ctx, "how-many-bios"),
-                "amount",
+                "bios",
             )
-            .placeholder(translate!(ctx, "your-bios", amount: player.bios)),
-        ),
-    ]);
+            .required(false)
+            .placeholder(your_bios),
+        )]);
 
-    inter
-        .create_response(ctx, CreateInteractionResponse::Modal(modal))
-        .await?;
+        inter
+            .create_response(ctx, CreateInteractionResponse::Modal(modal))
+            .await?;
 
-    Ok(())
+        Ok(())
+    }
 }
 
 pub fn get_round(ctx: Context<'_>, contradict: &Contradiction) -> String {
@@ -198,252 +65,311 @@ pub fn get_round(ctx: Context<'_>, contradict: &Contradiction) -> String {
         _ => translate!(ctx, "tround"),
     };
 
-    translate!(ctx, "round-info", gnumber: game, rnumber: round)
+    translate!(ctx, "contradict-round-info", gnumber: game, rnumber: round)
 }
 
-// new round
-pub async fn new_round(
-    ctx: Context<'_>,
-    inter: &ModalInteraction,
-    contradict: &Contradiction,
-) -> Result<Message, Error> {
-    let round_info = get_round(ctx, contradict);
-    let content = translate!(ctx, "choose-phase");
+impl Response {
+    pub async fn final_result(
+        ctx: Context<'_>,
+        inter: &ModalInteraction,
+        winner: &str,
+        loser: &str,
+    ) -> Result<(), Error> {
+        let content = translate!(ctx, "contradict-end", loser: loser, winner: winner);
 
-    Ok(inter
-        .create_followup(
-            ctx,
-            CreateInteractionResponseFollowup::new()
-                .content(format!("{}\n{}", round_info, content))
-                .components(choose_component(ctx)),
-        )
-        .await?)
-}
+        inter
+            .create_followup(
+                ctx,
+                CreateInteractionResponseFollowup::new()
+                    .content(content)
+                    .allowed_mentions(crate::mentions())
+                    .components(vec![]),
+            )
+            .await?;
 
-pub async fn new_turn(
-    ctx: Context<'_>,
-    inter: &ModalInteraction,
-    contradict: &Contradiction,
-) -> Result<Message, Error> {
-    let round_info = get_round(ctx, contradict);
-    let content = translate!(ctx, "choose-phase");
+        Ok(())
+    }
 
-    Ok(inter
-        .create_followup(
-            ctx,
-            CreateInteractionResponseFollowup::new()
-                .content(format!("{}\n{}", round_info, content))
-                .components(choose_component(ctx)),
-        )
-        .await?)
-}
+    pub async fn new_round(
+        ctx: Context<'_>,
+        inter: &ModalInteraction,
+        contradict: &Contradiction,
+    ) -> Result<Message, Error> {
+        let round_info = get_round(ctx, contradict);
+        let content = translate!(ctx, "contradict-choose-phase");
 
-// choose weapon and shield
-pub async fn choose_object(
-    ctx: Context<'_>,
-    inter: &ComponentInteraction,
-    contradict: &Contradiction,
-) -> Result<Message, Error> {
-    let player = contradict.get_player(inter.user.id).unwrap();
+        let message = inter
+            .create_followup(
+                ctx,
+                CreateInteractionResponseFollowup::new()
+                    .allowed_mentions(crate::mentions())
+                    .components(Button::choose(ctx, false))
+                    .content(format!("{}\n{}", round_info, content)),
+            )
+            .await?;
 
-    let content = match player.role {
-        Role::Defender => translate!(ctx, "defender-choose"),
-        Role::Attacker => translate!(ctx, "attacker-choose"),
-        Role::None => "error".to_string(),
-    };
+        Ok(message)
+    }
 
-    Ok(inter
-        .create_followup(
-            ctx,
-            CreateInteractionResponseFollowup::new()
-                .content(content)
-                .components(objects_component(ctx, inter, contradict))
-                .ephemeral(true),
-        )
-        .await?)
-}
+    pub async fn comparison(
+        ctx: Context<'_>,
+        inter: &ModalInteraction,
+        message_id: MessageId,
+        contradict: &mut Contradiction,
+        reaction: Reaction,
+    ) -> Result<(), Error> {
+        let defender = contradict.less_bet_player().name.clone();
+        let attacker = contradict.greater_bet_player().name.clone();
 
-fn get_comparison_result(
-    ctx: Context<'_>,
-    defender: &str,
-    attacker: &str,
-    reaction: Reaction,
-) -> String {
-    match reaction {
-        Reaction::Deviated => translate!(ctx, "gun-iron", defender: defender, attacker: attacker),
+        let content = Self::get_comparison_result(ctx, &defender, &attacker, reaction);
 
-        Reaction::Tased { shield, level } => match shield {
-            Shield::Iron => translate!(ctx, "taser-iron", defender: defender),
-            _ => translate!(ctx, "taser-wood", defender: defender),
-        },
+        let a = contradict.players.first().unwrap();
+        let b = contradict.players.last().unwrap();
 
-        Reaction::Stopped { weapon, shield } => match (weapon, shield) {
-            (Weapon::Katana, Shield::Iron) => translate!(ctx, "katana-iron", defender: defender),
-            (Weapon::Taser, Shield::Rubber) => translate!(ctx, "taser-rubber", defender: defender),
-            _ => String::from("None"),
-        },
+        let sub_content = translate!(ctx, "contradict-bet-info", a: &a.name, aBios: a.current_bet, b: &b.name, bBios: b.current_bet);
 
-        Reaction::Shot { shield } => {
-            let shield = match shield {
-                Shield::Rubber => translate!(ctx, "rubber"),
-                _ => translate!(ctx, "wood"),
-            };
+        inter
+            .edit_followup(
+                ctx,
+                message_id,
+                CreateInteractionResponseFollowup::new()
+                    .allowed_mentions(crate::mentions())
+                    .content(format!("{}\n\n{}", content, sub_content))
+                    .components(Button::bet(ctx, true)),
+            )
+            .await?;
 
-            translate!(ctx, "gun-wood-rubber", defender: defender, material: shield)
+        Ok(())
+    }
+
+    fn get_comparison_result(
+        ctx: Context<'_>,
+        defender: &str,
+        attacker: &str,
+        reaction: Reaction,
+    ) -> String {
+        match reaction {
+            Reaction::Deviated => {
+                translate!(ctx, "gun-iron", defender: defender, attacker: attacker)
+            }
+
+            Reaction::Tased { shield, .. } => match shield {
+                ShieldEnum::Iron => translate!(ctx, "taser-iron", defender: defender),
+                _ => translate!(ctx, "taser-wood", defender: defender),
+            },
+
+            Reaction::Stopped { weapon, shield } => match (weapon, shield) {
+                (WeaponEnum::Katana, ShieldEnum::Iron) => {
+                    translate!(ctx, "katana-iron", defender: defender)
+                }
+                (WeaponEnum::Taser, ShieldEnum::Rubber) => {
+                    translate!(ctx, "taser-rubber", defender: defender)
+                }
+                _ => String::from("None"),
+            },
+
+            Reaction::Shot { shield } => {
+                let shield = match shield {
+                    ShieldEnum::Rubber => translate!(ctx, "rubber"),
+                    _ => translate!(ctx, "wood"),
+                };
+
+                translate!(ctx, "gun-wood-rubber", defender: defender, material: shield)
+            }
+
+            Reaction::Pierced { shield, .. } => match shield {
+                ShieldEnum::Rubber => translate!(ctx, "katana-rubber", defender: defender),
+                ShieldEnum::Wood => translate!(ctx, "katana-wood", defender: defender),
+                ShieldEnum::Iron => translate!(ctx, "katana-iron", defender: defender),
+            },
         }
+    }
 
-        Reaction::Pierced { shield, level } => match shield {
-            Shield::Rubber => translate!(ctx, "katana-rubber", defender: defender),
-            Shield::Wood => translate!(ctx, "katana-wood", defender: defender),
-            Shield::Iron => translate!(ctx, "katana-iron", defender: defender),
-        },
+    pub async fn bet_draw(
+        ctx: Context<'_>,
+        inter: &ModalInteraction,
+        message_id: MessageId,
+    ) -> Result<(), Error> {
+        let content = translate!(ctx, "contradict-bet-draw");
+
+        inter
+            .edit_followup(
+                ctx,
+                message_id,
+                CreateInteractionResponseFollowup::new()
+                    .content(content)
+                    .components(Button::bet(ctx, false)),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn request(ctx: Context<'_>, user: &User, bios: i32) -> Result<Message, Error> {
+        let content =
+            translate!(ctx, "contradict-request", user: user.mention().to_string(), bios: bios);
+
+        let message = ctx
+            .send(
+                CreateReply::default()
+                    .content(content)
+                    .allowed_mentions(crate::mentions())
+                    .components(CommonButton::accept_or_decline(ctx, false)),
+            )
+            .await?
+            .into_message()
+            .await?;
+
+        Ok(message)
+    }
+
+    pub async fn declined(
+        ctx: Context<'_>,
+        inter: &ComponentInteraction,
+        user: &User,
+    ) -> Result<(), Error> {
+        let content = translate!(ctx, "game-declined", user: user.mention().to_string());
+
+        inter
+            .create_response(
+                ctx,
+                CreateInteractionResponse::UpdateMessage(
+                    CreateInteractionResponseMessage::new()
+                        .content(content)
+                        .components(CommonButton::accept_or_decline(ctx, true))
+                        .allowed_mentions(crate::mentions()),
+                ),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn start(
+        ctx: Context<'_>,
+        inter: &ComponentInteraction,
+        contradict: &Contradiction,
+    ) -> Result<(), Error> {
+        let defender = contradict
+            .players
+            .iter()
+            .find(|p| p.role == Role::Defender)
+            .unwrap();
+        let content = translate!(ctx, "contradict-start", defender: &defender.name);
+
+        inter
+            .create_response(
+                ctx,
+                CreateInteractionResponse::UpdateMessage(
+                    CreateInteractionResponseMessage::new()
+                        .content(content)
+                        .components(Button::choose(ctx, false))
+                        .allowed_mentions(crate::mentions()),
+                ),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn choose(
+        ctx: Context<'_>,
+        inter: &ComponentInteraction,
+        contradict: &Contradiction,
+    ) -> Result<Message, Error> {
+        let player = contradict.get_player(inter.user.id).unwrap();
+
+        let content = match player.role {
+            Role::Defender => translate!(ctx, "choose-shield"),
+            _ => translate!(ctx, "choose-weapon"),
+        };
+
+        let message = inter
+            .create_followup(
+                ctx,
+                CreateInteractionResponseFollowup::new()
+                    .content(content)
+                    .components(Button::objects(ctx, inter, contradict)),
+            )
+            .await?;
+
+        Ok(message)
+    }
+
+    pub async fn bet_phase(
+        ctx: Context<'_>,
+        inter: &ComponentInteraction,
+        message_id: MessageId,
+    ) -> Result<(), Error> {
+        let content = translate!(ctx, "contradict-bet-phase");
+
+        inter
+            .edit_followup(
+                ctx,
+                message_id,
+                CreateInteractionResponseFollowup::new()
+                    .content(content)
+                    .components(Button::bet(ctx, false)),
+            )
+            .await?;
+
+        Ok(())
     }
 }
 
-pub async fn comparison(
-    ctx: Context<'_>,
-    inter: &ModalInteraction,
-    message: MessageId,
-    contradict: &mut Contradiction,
-    reaction: Reaction,
-) -> Result<(), Error> {
-    let defender = contradict.less_bet_player().name.clone();
-    let attacker = contradict.greater_bet_player().name.clone();
+impl Button {
+    fn choose(ctx: Context<'_>, disabled: bool) -> Vec<CreateActionRow> {
+        vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
+            "{}_choose",
+            ctx.id()
+        ))
+        .style(ButtonStyle::Secondary)
+        .label(translate!(ctx, "choose-object-btn"))
+        .disabled(disabled)])]
+    }
 
-    let content = get_comparison_result(ctx, &defender, &attacker, reaction);
+    fn bet(ctx: Context<'_>, disabled: bool) -> Vec<CreateActionRow> {
+        vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
+            "{}_bet",
+            ctx.id()
+        ))
+        .style(ButtonStyle::Secondary)
+        .disabled(disabled)
+        .label(translate!(ctx, "bet-btn"))])]
+    }
 
-    let a = contradict.players.first().unwrap();
-    let b = contradict.players.last().unwrap();
+    fn objects(
+        ctx: Context<'_>,
+        inter: &ComponentInteraction,
+        contradict: &Contradiction,
+    ) -> Vec<CreateActionRow> {
+        let mut buttons = Vec::new();
 
-    let sub_content = translate!(ctx, "bet-info", a: &a.name, aBios: a.current_bet, b: &b.name, bBios: b.current_bet);
+        let player = contradict.get_player(inter.user.id).unwrap();
 
-    inter
-        .edit_followup(
-            ctx,
-            message,
-            CreateInteractionResponseFollowup::new()
-                .content(format!("{}\n\n{}", content, sub_content))
-                .components(vec![]),
-        )
-        .await?;
+        match player.role {
+            Role::Defender => {
+                for (index, shield) in contradict.shields.iter().enumerate() {
+                    let button = CreateButton::new(format!("{}_object_{}", ctx.id(), index))
+                        .style(ButtonStyle::Secondary)
+                        .label(translate!(ctx, shield.name()))
+                        .disabled(shield.used);
 
-    Ok(())
-}
+                    buttons.push(button);
+                }
+            }
+            _ => {
+                for (index, weapon) in contradict.weapons.iter().enumerate() {
+                    let button = CreateButton::new(format!("{}_object_{}", ctx.id(), index))
+                        .style(ButtonStyle::Secondary)
+                        .label(translate!(ctx, weapon.name()))
+                        .disabled(weapon.used);
 
-// join or accept messages
-pub async fn accept(ctx: Context<'_>, user: &User, bet: i32) -> Result<Message, Error> {
-    let content = translate!(ctx, "contradict-proposal", user: user.name.to_title_case());
+                    buttons.push(button);
+                }
+            }
+        }
 
-    let components = vec![CreateActionRow::Buttons(vec![
-        CreateButton::new(format!("{}_accept", ctx.id()))
-            .style(ButtonStyle::Secondary)
-            .label(translate!(ctx, "accept")),
-        CreateButton::new(format!("{}_decline", ctx.id()))
-            .style(ButtonStyle::Secondary)
-            .label(translate!(ctx, "decline")),
-    ])];
-
-    Ok(ctx
-        .send(
-            CreateReply::default()
-                .content(content)
-                .components(components),
-        )
-        .await?
-        .into_message()
-        .await?)
-}
-
-pub async fn join(ctx: Context<'_>, bet: i32) -> Result<Message, Error> {
-    let content = translate!(ctx, "contradict-open");
-
-    let components = vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
-        "{}_join",
-        ctx.id()
-    ))
-    .style(ButtonStyle::Secondary)
-    .label(translate!(ctx, "join"))])];
-
-    Ok(ctx
-        .send(
-            CreateReply::default()
-                .content(content)
-                .components(components),
-        )
-        .await?
-        .into_message()
-        .await?)
-}
-
-pub async fn declined(ctx: Context<'_>, inter: &ComponentInteraction) -> Result<(), Error> {
-    let content = translate!(ctx, "declined-game");
-
-    inter
-        .create_response(
-            ctx,
-            CreateInteractionResponse::UpdateMessage(
-                CreateInteractionResponseMessage::new()
-                    .content(content)
-                    .components(vec![]),
-            ),
-        )
-        .await?;
-
-    Ok(())
-}
-
-// error messages
-pub async fn bet_again(
-    ctx: Context<'_>,
-    inter: &ModalInteraction,
-    message: MessageId,
-    amount: usize,
-) -> Result<(), Error> {
-    let content = translate!(ctx, "bet-again", amount: amount);
-
-    inter
-        .edit_followup(
-            ctx,
-            message,
-            CreateInteractionResponseFollowup::new().content(content),
-        )
-        .await?;
-
-    Ok(())
-}
-
-pub async fn incorrect_bet(ctx: Context<'_>, inter: &ModalInteraction) -> Result<(), Error> {
-    let content = translate!(ctx, "invalid-bet");
-
-    inter
-        .create_response(
-            ctx,
-            CreateInteractionResponse::Message(
-                CreateInteractionResponseMessage::new()
-                    .content(content)
-                    .components(vec![])
-                    .ephemeral(true),
-            ),
-        )
-        .await?;
-
-    Ok(())
-}
-
-pub async fn incorrect_inter(ctx: Context<'_>, inter: &ComponentInteraction) -> Result<(), Error> {
-    let content = translate!(ctx, "not-for-you");
-
-    inter
-        .create_response(
-            ctx,
-            CreateInteractionResponse::UpdateMessage(
-                CreateInteractionResponseMessage::new()
-                    .content(content)
-                    .components(vec![])
-                    .ephemeral(true),
-            ),
-        )
-        .await?;
-
-    Ok(())
+        vec![CreateActionRow::Buttons(buttons)]
+    }
 }
