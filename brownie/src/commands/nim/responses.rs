@@ -83,7 +83,7 @@ impl ErrorRes {
         winner: &str,
         loser: &str,
     ) -> Result<(), Error> {
-        let content = translate!(ctx, "nim-timeout", winner: winner, loser: loser);
+        let content = translate!(ctx, "timeout-vs", winner: winner, loser: loser);
 
         inter
             .edit_followup(
@@ -124,7 +124,7 @@ impl Response {
         inter: &ComponentInteraction,
         user: &User,
     ) -> Result<(), Error> {
-        let content = translate!(ctx, "nim-declined", user: user.mention().to_string());
+        let content = translate!(ctx, "game-declined", user: user.mention().to_string());
 
         inter
             .create_response(
@@ -277,11 +277,11 @@ impl Button {
         vec![CreateActionRow::Buttons(vec![
             CreateButton::new(format!("{}_accept", ctx.id()))
                 .style(ButtonStyle::Secondary)
-                .label(translate!(ctx, "accept-btn"))
+                .label(translate!(ctx, "accept"))
                 .disabled(all_disabled),
             CreateButton::new(format!("{}_decline", ctx.id()))
                 .style(ButtonStyle::Secondary)
-                .label(translate!(ctx, "decline-btn"))
+                .label(translate!(ctx, "decline"))
                 .disabled(all_disabled),
         ])]
     }
@@ -292,7 +292,7 @@ impl Button {
             ctx.id()
         ))
         .style(ButtonStyle::Secondary)
-        .label(translate!(ctx, "choose-card-btn"))
+        .label(translate!(ctx, "choose-card"))
         .disabled(disabled)])]
     }
 
