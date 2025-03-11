@@ -1,19 +1,37 @@
 #[derive(Clone, Debug)]
-pub enum Card {
+pub enum Value {
     Zero,
     One,
     Two,
     Three,
 }
 
+#[derive(Clone, Debug)]
+pub struct Card {
+    pub value: Value,
+    pub disabled: bool,
+}
+
 impl Card {
+    pub fn new(value: Value) -> Self {
+        Self {
+            value,
+            disabled: false,
+        }
+    }
+
     pub fn standart_deck() -> Vec<Self> {
         use rand::seq::SliceRandom;
 
         let mut deck = Vec::new();
 
         for _ in 0..10 {
-            deck.extend([Self::Zero, Self::One, Self::Two, Self::Three]);
+            deck.extend([
+                Self::new(Value::Zero),
+                Self::new(Value::One),
+                Self::new(Value::Two),
+                Self::new(Value::Three),
+            ]);
         }
 
         deck.shuffle(&mut rand::thread_rng());
@@ -21,20 +39,20 @@ impl Card {
     }
 
     pub fn value(&self) -> i32 {
-        match *self {
-            Self::Zero => 0,
-            Self::One => 1,
-            Self::Two => 2,
-            Self::Three => 3,
+        match self.value {
+            Value::Zero => 0,
+            Value::One => 1,
+            Value::Two => 2,
+            Value::Three => 3,
         }
     }
 
     pub fn name(&self) -> String {
-        match *self {
-            Self::Zero => String::from("zero"),
-            Self::One => String::from("one"),
-            Self::Two => String::from("two"),
-            Self::Three => String::from("three"),
+        match self.value {
+            Value::Zero => String::from("zero"),
+            Value::One => String::from("one"),
+            Value::Two => String::from("two"),
+            Value::Three => String::from("three"),
         }
     }
 }

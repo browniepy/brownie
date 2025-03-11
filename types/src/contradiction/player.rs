@@ -1,6 +1,6 @@
 use inflector::Inflector;
 use itertools::Itertools;
-use poise::serenity_prelude::{Message, User, UserId};
+use poise::serenity_prelude::{Mentionable, Message, User, UserId};
 
 #[derive(PartialEq)]
 pub enum Role {
@@ -47,7 +47,7 @@ impl Player {
     pub fn new(user: &User) -> Self {
         Self {
             id: user.id,
-            name: user.display_name().to_title_case(),
+            name: user.mention().to_string(),
             bios: 10000,
             current_bet: 0,
             role: Role::None,

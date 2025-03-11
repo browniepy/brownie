@@ -4,16 +4,26 @@ pub use player::{Player, Role, State};
 use poise::serenity_prelude::UserId;
 use rand::{seq::SliceRandom, thread_rng};
 
-pub enum Shield {
+pub enum ShieldEnum {
     Iron,
     Wood,
     Rubber,
 }
 
-pub enum Weapon {
+pub enum WeaponEnum {
     Katana,
     Gun,
     Taser,
+}
+
+pub struct Weapon {
+    pub weapon: WeaponEnum,
+    pub used: bool,
+}
+
+pub struct Shield {
+    pub shield: ShieldEnum,
+    pub used: bool,
 }
 
 pub enum Level {
@@ -24,18 +34,79 @@ pub enum Level {
 
 pub enum Reaction {
     Deviated,
-    Shot { shield: Shield },
+    Shot {
+        shield: ShieldEnum,
+    },
 
-    Pierced { shield: Shield, level: Level },
+    Pierced {
+        shield: ShieldEnum,
+        level: Level,
+    },
 
-    Tased { shield: Shield, level: Level },
+    Tased {
+        shield: ShieldEnum,
+        level: Level,
+    },
 
-    Stopped { weapon: Weapon, shield: Shield },
+    Stopped {
+        weapon: WeaponEnum,
+        shield: ShieldEnum,
+    },
 }
 
 pub struct RoundInfo {
     pub game: usize,
     pub round: usize,
+}
+
+impl Weapon {
+    pub fn new(w: WeaponEnum) -> Self {
+        Self {
+            weapon: w,
+            used: false,
+        }
+    }
+
+    fn list() -> Vec<Self> {
+        vec![
+            Self::new(WeaponEnum::Katana),
+            Self::new(WeaponEnum::Gun),
+            Self::new(WeaponEnum::Taser),
+        ]
+    }
+
+    pub fn name(&self) -> &str {
+        match self.weapon {
+            WeaponEnum::Katana => "katana",
+            WeaponEnum::Gun => "gun",
+            WeaponEnum::Taser => "taser",
+        }
+    }
+}
+
+impl Shield {
+    pub fn new(s: ShieldEnum) -> Self {
+        Self {
+            shield: s,
+            used: false,
+        }
+    }
+
+    fn list() -> Vec<Self> {
+        vec![
+            Self::new(ShieldEnum::Iron),
+            Self::new(ShieldEnum::Wood),
+            Self::new(ShieldEnum::Rubber),
+        ]
+    }
+
+    pub fn name(&self) -> &str {
+        match self.shield {
+            ShieldEnum::Iron => "iron",
+            ShieldEnum::Wood => "wood",
+            ShieldEnum::Rubber => "rubber",
+        }
+    }
 }
 
 impl RoundInfo {
@@ -58,6 +129,7 @@ pub struct Contradiction {
     pub weapons: Vec<Weapon>,
     pub shields: Vec<Shield>,
     pub already_bet: Vec<UserId>,
+    pub already_selected: Vec<UserId>,
     pub selected_weapon: Option<usize>,
     pub selected_shield: Option<usize>,
     pub round_info: RoundInfo,
@@ -69,12 +141,20 @@ pub trait Battle {
 
 impl Battle for Contradiction {
     fn battle(&mut self) -> Reaction {
-        let weapon = self.weapons.get(self.selected_weapon.unwrap()).unwrap();
-        let shield = self.shields.get(self.selected_shield.unwrap()).unwrap();
+        let weapon = &self
+            .weapons
+            .get(self.selected_weapon.unwrap())
+            .unwrap()
+            .weapon;
+        let shield = &self
+            .shields
+            .get(self.selected_shield.unwrap())
+            .unwrap()
+            .shield;
 
         let (state, reaction) = match (weapon, shield) {
             // Gun weapon
-            (Weapon::Gun, Shield::Iron) => {
+            (WeaponEnum::Gun, ShieldEnum::Iron) => {
                 let less_better = self.less_bet_player();
 
                 if less_better.is_tased() || less_better.is_shot() {
@@ -82,99 +162,99 @@ impl Battle for Contradiction {
                     (
                         Some(State::Shot),
                         Reaction::Shot {
-                            shield: Shield::Iron,
+                            shield: ShieldEnum::Iron,
                         },
                     )
                 } else {
                     (None, Reaction::Deviated)
                 }
             }
-            (Weapon::Gun, Shield::Wood) => {
+            (WeaponEnum::Gun, ShieldEnum::Wood) => {
                 let less_better = self.less_bet_player();
 
                 less_better.add_anxiety(50);
                 (
                     Some(State::Shot),
                     Reaction::Shot {
-                        shield: Shield::Wood,
+                        shield: ShieldEnum::Wood,
                     },
                 )
             }
-            (Weapon::Gun, Shield::Rubber) => {
+            (WeaponEnum::Gun, ShieldEnum::Rubber) => {
                 let less_better = self.less_bet_player();
 
                 less_better.add_anxiety(45);
                 (
                     Some(State::Shot),
                     Reaction::Shot {
-                        shield: Shield::Rubber,
+                        shield: ShieldEnum::Rubber,
                     },
                 )
             }
 
             // Katana weapon
-            (Weapon::Katana, Shield::Iron) => (
+            (WeaponEnum::Katana, ShieldEnum::Iron) => (
                 None,
                 Reaction::Stopped {
-                    weapon: Weapon::Katana,
-                    shield: Shield::Iron,
+                    weapon: WeaponEnum::Katana,
+                    shield: ShieldEnum::Iron,
                 },
             ),
-            (Weapon::Katana, Shield::Wood) => {
+            (WeaponEnum::Katana, ShieldEnum::Wood) => {
                 let less_better = self.less_bet_player();
 
                 less_better.add_anxiety(30);
                 (
                     Some(State::Cut),
                     Reaction::Pierced {
-                        shield: Shield::Wood,
+                        shield: ShieldEnum::Wood,
                         level: Level::Medium,
                     },
                 )
             }
-            (Weapon::Katana, Shield::Rubber) => {
+            (WeaponEnum::Katana, ShieldEnum::Rubber) => {
                 let less_better = self.less_bet_player();
 
                 less_better.add_anxiety(20);
                 (
                     Some(State::Cut),
                     Reaction::Pierced {
-                        shield: Shield::Rubber,
+                        shield: ShieldEnum::Rubber,
                         level: Level::Low,
                     },
                 )
             }
 
             // Taser weapon
-            (Weapon::Taser, Shield::Iron) => {
+            (WeaponEnum::Taser, ShieldEnum::Iron) => {
                 let less_better = self.less_bet_player();
 
                 less_better.add_anxiety(30);
                 (
                     Some(State::Tased),
                     Reaction::Tased {
-                        shield: Shield::Iron,
+                        shield: ShieldEnum::Iron,
                         level: Level::High,
                     },
                 )
             }
-            (Weapon::Taser, Shield::Wood) => {
+            (WeaponEnum::Taser, ShieldEnum::Wood) => {
                 let less_better = self.less_bet_player();
 
                 less_better.add_anxiety(10);
                 (
                     None,
                     Reaction::Tased {
-                        shield: Shield::Wood,
+                        shield: ShieldEnum::Wood,
                         level: Level::Low,
                     },
                 )
             }
-            (Weapon::Taser, Shield::Rubber) => (
+            (WeaponEnum::Taser, ShieldEnum::Rubber) => (
                 None,
                 Reaction::Stopped {
-                    weapon: Weapon::Taser,
-                    shield: Shield::Rubber,
+                    weapon: WeaponEnum::Taser,
+                    shield: ShieldEnum::Rubber,
                 },
             ),
         };
@@ -195,6 +275,7 @@ impl Contradiction {
             weapons: Weapon::list(),
             shields: Shield::list(),
             already_bet: Vec::with_capacity(2),
+            already_selected: Vec::with_capacity(2),
             selected_weapon: None,
             selected_shield: None,
             round_info: RoundInfo::new(),
@@ -329,34 +410,6 @@ impl Contradiction {
                 .filter(|player| self.already_bet.contains(&player.id))
                 .max_by_key(|player| player.current_bet)
                 .unwrap()
-        }
-    }
-}
-
-impl Shield {
-    pub fn list() -> Vec<Self> {
-        vec![Self::Iron, Self::Wood, Self::Rubber]
-    }
-
-    pub fn name(&self) -> &str {
-        match *self {
-            Self::Iron => "iron",
-            Self::Wood => "wood",
-            Self::Rubber => "rubber",
-        }
-    }
-}
-
-impl Weapon {
-    pub fn list() -> Vec<Self> {
-        vec![Self::Katana, Self::Gun, Self::Taser]
-    }
-
-    pub fn name(&self) -> &str {
-        match *self {
-            Self::Katana => "katana",
-            Self::Gun => "gun",
-            Self::Taser => "taser",
         }
     }
 }
