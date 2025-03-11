@@ -1,4 +1,6 @@
 pub mod player;
+pub mod witch_pain;
+
 use crate::{cards::air::steel_deck, evaluate::compare_hands, Error};
 pub use player::{AirBios, Player};
 use poise::serenity_prelude::{ComponentInteraction, UserId};

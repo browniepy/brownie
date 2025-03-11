@@ -6,11 +6,6 @@ pub use player::{Dealer, Player, State};
 use crate::cards::poker::Card;
 use poise::serenity_prelude::User;
 
-pub enum FinishReason {
-    Timeout,
-    Completed { result: RoundResult },
-}
-
 pub enum RoundResult {
     Draw,
     Win { state: State },
@@ -21,10 +16,6 @@ pub struct Blackjack {
     pub player: Player,
     pub dealer: Dealer,
     pub timeout: Option<AtomicU8>,
-    pub is_dealer_bust: bool,
-    pub max_rounds: usize,
-    pub round: usize,
-    pub last_event: Option<RoundResult>,
 }
 
 impl Blackjack {
@@ -35,26 +26,14 @@ impl Blackjack {
             player,
             dealer: Dealer::default(),
             timeout: None,
-            is_dealer_bust: false,
-            max_rounds: 7,
-            round: 1,
-            last_event: None,
         }
-    }
-
-    pub fn add_round(&mut self) {
-        self.round += 1
-    }
-
-    pub fn finish(&self) -> bool {
-        self.round == self.max_rounds
     }
 
     pub fn player_wins(&self) -> bool {
         match self.player.state {
             State::Bust => false, // Jugador pierde si se pasa
             _ => {
-                if self.is_dealer_bust {
+                if self.dealer.is_bust() {
                     true // Jugador gana si el dealer se pasa
                 } else {
                     let player_value = self.player.hand_value();
@@ -77,15 +56,11 @@ impl Blackjack {
             };
         }
 
-        if self.is_dealer_bust || self.dealer.hand_value(false) == self.player.hand_value() {
+        if self.dealer.is_bust() || self.dealer.hand_value(false) == self.player.hand_value() {
             return RoundResult::Draw;
         }
 
-        return RoundResult::Lose { bust: false };
-    }
-
-    pub fn set_last_event(&mut self, event: RoundResult) {
-        self.last_event = Some(event);
+        RoundResult::Lose { bust: false }
     }
 
     pub fn set_timeout(&mut self) {
@@ -121,6 +96,10 @@ impl Blackjack {
 
         self.player.hand.push(deck.pop().unwrap());
         self.dealer.hand.push(deck.pop().unwrap());
+
+        if self.player.is_blackjack() {
+            self.player.state = State::Blackjack;
+        }
     }
 
     pub fn player_hit(&mut self, deck: &mut Vec<Card>) {
@@ -135,10 +114,6 @@ impl Blackjack {
     pub fn dealer_hit(&mut self, deck: &mut Vec<Card>) {
         if self.dealer.hand_value(false) < 17 {
             self.dealer.hand.push(deck.pop().unwrap());
-
-            if self.dealer.hand_value(false) > 21 {
-                self.is_dealer_bust = true;
-            }
         }
     }
 }
