@@ -1,5 +1,5 @@
 use database::structs::{Member, System};
-use poise::serenity_prelude::UserId;
+use poise::serenity_prelude::{CreateAllowedMentions, UserId};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
@@ -141,31 +141,43 @@ pub async fn charge_bet(
 ) -> Result<(), Error> {
     let data = ctx.data();
 
-    let loser_player = get_member(ctx, loser).await?;
-    let mut loser_write = loser_player.write().await;
+    // Optimización: Obtener ambos usuarios de manera paralela
+    let (winner_member, loser_member) =
+        tokio::join!(get_member(ctx, winner), get_member(ctx, loser));
 
-    if loser_write.balance >= bet {
-        loser_write.remove_balance(bet, &data.pool).await?;
+    let winner_member = winner_member?;
+    let loser_member = loser_member?;
 
-        let winner = get_member(ctx, winner).await?;
-        let mut winner_write = winner.write().await;
+    // Procesamiento del perdedor
+    let revenue;
+    let debt;
+    {
+        let mut loser_write = loser_member.write().await;
 
-        winner_write.add_balalance(bet, &data.pool).await?;
-    } else {
-        let debt = bet - loser_write.balance;
-        let revenue = bet - debt;
+        if loser_write.balance >= bet {
+            // Caso simple: el perdedor tiene suficiente saldo
+            loser_write.remove_balance(bet, &data.pool).await?;
+            revenue = bet;
+            debt = 0;
+        } else {
+            // Caso con deuda: el perdedor no tiene suficiente saldo
+            debt = bet - loser_write.balance;
+            revenue = bet - debt;
 
-        loser_write.remove_balance(revenue, &data.pool).await?;
-        loser_write
-            .set_debt(winner.into(), debt, &data.pool)
-            .await?;
+            loser_write.remove_balance(revenue, &data.pool).await?;
+            loser_write
+                .set_debt(winner.into(), debt, &data.pool)
+                .await?;
+        }
+    }
 
-        let winner = get_member(ctx, winner).await?;
-        let mut winner_write = winner.write().await;
-
+    // Procesamiento del ganador
+    {
+        let mut winner_write = winner_member.write().await;
         winner_write.add_balalance(revenue, &data.pool).await?;
     }
 
+    // Agregar puntos por la victoria
     add_win_points(ctx, winner, loser, bet).await?;
 
     Ok(())
@@ -177,4 +189,11 @@ pub async fn can_partial_bet(ctx: Context<'_>, id: UserId, bet: i32) -> Result<b
 
     let required_bal = (bet as f32 * 1.0) as i32;
     Ok(player_read.balance >= required_bal)
+}
+
+pub fn mentions() -> CreateAllowedMentions {
+    CreateAllowedMentions::new()
+        .everyone(false)
+        .replied_user(false)
+        .all_users(false)
 }
