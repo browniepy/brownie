@@ -5,6 +5,49 @@ use types::dices::Selection;
 pub struct Parse;
 
 impl Parse {
+    pub fn num_with_commas(number: i32) -> String {
+        let num_str = number.to_string();
+        let len = num_str.len();
+        let mut s = String::with_capacity(len + len / 3);
+
+        for (idx, ch) in num_str.chars().enumerate() {
+            if idx > 0 && (len - idx) % 3 == 0 {
+                s.push(',');
+            }
+            s.push(ch);
+        }
+        s
+    }
+
+    pub fn format_seconds(seconds: u64) -> String {
+        if seconds < 60 {
+            // Si es menos de un minuto, solo mostramos los segundos
+            format!("{}s", seconds)
+        } else {
+            // Si es un minuto o más, calculamos minutos y segundos restantes
+            let minutes = seconds / 60;
+            let remaining_seconds = seconds % 60;
+
+            if remaining_seconds == 0 {
+                // Si no hay segundos restantes, solo mostramos los minutos
+                format!("{}m", minutes)
+            } else {
+                // Si hay segundos restantes, mostramos ambos
+                format!("{}m{}s", minutes, remaining_seconds)
+            }
+        }
+    }
+
+    pub fn abbreviate_number(number: i32) -> String {
+        let abs_number = number.abs();
+
+        match abs_number as f64 {
+            num if num >= 1_000_000_000.0 => format!("{:.1}b", num / 1_000_000_000.0),
+            num if num >= 1_000_000.0 => format!("{:.1}m", num / 1_000_000.0),
+            num if num >= 1_000.0 => format!("{:.1}k", num / 1_000.0),
+            _ => number.to_string(),
+        }
+    }
     pub async fn amount(
         ctx: Context<'_>,
         user_id: UserId,
@@ -19,6 +62,11 @@ impl Parse {
                     if val < 500 {
                         return Err("No puedes apostar menos de 500".into());
                     }
+
+                    if val > read.balance {
+                        return Err("No tienes suficiente dinero".into());
+                    }
+
                     val
                 }
                 Err(_) => match amount.to_lowercase().as_str() {
