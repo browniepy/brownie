@@ -135,6 +135,10 @@ impl Member {
     }
 
     pub fn calculate_level(&self) -> i32 {
+        if self.points < 1100 {
+            return 1;
+        }
+
         use std::f64;
         (12.0 * f64::ln(self.points as f64 / 1000.0) + 1.0).floor() as i32
     }
