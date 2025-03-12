@@ -1,6 +1,6 @@
 use crate::{Context, Data, Error};
 
-use std::collections::HashMap;
+use std::{collections::HashMap, fs, path::Path};
 
 type FluentBundle = fluent::bundle::FluentBundle<
     fluent::FluentResource,
@@ -47,45 +47,71 @@ pub fn get(
 ) -> String {
     let translations = &ctx.data().translations;
     ctx.locale()
-        // Try to get the language-specific translation
         .and_then(|locale| format(translations.other.get(locale)?, id, attr, args))
-        // Otherwise, fall back on main translation
         .or_else(|| format(&translations.main, id, attr, args))
-        // If this message ID is not present in any translation files whatsoever
-        .unwrap_or_else(|| {
-            //tracing::warn!("unknown fluent message identifier `{}`", id);
-            id.to_string()
-        })
+        .unwrap_or_else(|| format!("missing translation {}", id))
 }
 
 pub fn read_ftl() -> Result<Translations, Error> {
-    fn read_single_ftl(path: &std::path::Path) -> Result<(String, FluentBundle), Error> {
-        // Extract locale from filename
-        let locale = path.file_stem().ok_or("invalid .ftl filename")?;
-        let locale = locale.to_str().ok_or("invalid filename UTF-8")?;
-
-        // Load .ftl resource
-        let file_contents = std::fs::read_to_string(path)?;
-        let resource = fluent::FluentResource::try_new(file_contents)
-            .map_err(|(_, e)| format!("failed to parse {:?}: {:?}", path, e))?;
-
-        // Associate .ftl resource with locale and bundle it
+    fn create_bundle_for_locale(
+        locale: &str,
+        resources: Vec<fluent::FluentResource>,
+    ) -> Result<FluentBundle, Error> {
         let mut bundle = FluentBundle::new_concurrent(vec![locale
             .parse()
             .map_err(|e| format!("invalid locale `{}`: {}", locale, e))?]);
-        bundle
-            .add_resource(resource)
-            .map_err(|e| format!("failed to add resource to bundle: {:?}", e))?;
 
-        Ok((locale.to_string(), bundle))
+        for resource in resources {
+            bundle
+                .add_resource(resource)
+                .map_err(|e| format!("failed to add resource to bundle: {:?}", e))?;
+        }
+
+        Ok(bundle)
     }
 
-    Ok(Translations {
-        main: read_single_ftl("translations/en-US.ftl".as_ref())?.1,
-        other: std::fs::read_dir("translations")?
-            .map(|file| read_single_ftl(&file?.path()))
-            .collect::<Result<_, _>>()?,
-    })
+    fn read_ftl_file(path: &Path) -> Result<fluent::FluentResource, Error> {
+        let file_contents = fs::read_to_string(path)?;
+        Ok(fluent::FluentResource::try_new(file_contents)
+            .map_err(|(_, e)| format!("failed to parse {:?}: {:?}", path, e))?)
+    }
+
+    fn read_locale_directory(dir_path: &Path) -> Result<(String, FluentBundle), Error> {
+        let locale = dir_path
+            .file_name()
+            .ok_or("invalid directory name")?
+            .to_str()
+            .ok_or("invalid directory name UTF-8")?
+            .to_string();
+
+        let mut resources = Vec::new();
+
+        for entry in fs::read_dir(dir_path)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_file() && path.extension().map_or(false, |ext| ext == "ftl") {
+                resources.push(read_ftl_file(&path)?);
+            }
+        }
+
+        if resources.is_empty() {
+            return Err(format!("no .ftl files found in directory {:?}", dir_path).into());
+        }
+
+        Ok((
+            locale.clone(),
+            create_bundle_for_locale(&locale, resources)?,
+        ))
+    }
+
+    let main = read_locale_directory("translations/en-US".as_ref())?.1;
+
+    let other = std::fs::read_dir("translations")?
+        .map(|dir| read_locale_directory(&dir?.path()))
+        .collect::<Result<_, _>>()?;
+
+    Ok(Translations { main, other })
 }
 
 /// Given a set of language files, fills in command strings and their localizations accordingly
