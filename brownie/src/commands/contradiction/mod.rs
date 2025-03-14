@@ -152,24 +152,23 @@ pub async fn contradict(ctx: Context<'_>, user: User, bios: Option<String>) -> R
                 let player = contradict.get_mut_player(inter.user.id).unwrap();
 
                 let modal = BetModal::parse(inter.clone().data).unwrap();
-                let bios_bet = modal
-                    .bios
-                    .unwrap_or(if player.bios > 0 {
-                        1.to_string()
-                    } else {
-                        0.to_string()
-                    })
-                    .parse::<usize>();
+                let bios_bet = modal.bios.unwrap_or(if player.bios > 0 {
+                    1.to_string()
+                } else {
+                    0.to_string()
+                });
+
+                let bios_bet = Parse::abbreviation_to_number(&bios_bet);
 
                 if let Ok(bet) = bios_bet {
                     if bet as isize <= player.bios {
                         if bet == 0 && player.bios > 0 {
                             CommonRes::incorrect_bet(ctx, &inter).await?;
                         } else {
-                            player.bet(bet);
+                            player.bet(bet as usize);
                             contradict.already_bet.push(inter.user.id);
 
-                            CommonRes::modal_your_bet_res(ctx, &inter, bet as i32).await?;
+                            CommonRes::modal_your_bet_res(ctx, &inter, bet).await?;
                         }
                     } else {
                         CommonRes::incorrect_bet(ctx, &inter).await?;
@@ -217,7 +216,9 @@ pub async fn contradict(ctx: Context<'_>, user: User, bios: Option<String>) -> R
                             return Ok(());
                         }
 
-                        if contradict.shields.is_empty() {
+                        tokio::time::sleep(Duration::from_secs(3)).await;
+
+                        if contradict.empty_objects() {
                             contradict.setup_next_round();
                             contradict.round_info.setup_next();
                             message = Response::new_round(ctx, &inter, &contradict).await?;

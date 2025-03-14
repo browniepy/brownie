@@ -1,5 +1,5 @@
 use super::super::CommonButton;
-use crate::{translate, Context, Error};
+use crate::{translate, Context, Error, Parse};
 use poise::{
     serenity_prelude::{
         ButtonStyle, ComponentInteraction, CreateActionRow, CreateButton, CreateInputText,
@@ -24,7 +24,7 @@ impl ModalRes {
         player: &Player,
     ) -> Result<(), Error> {
         let your_bios = if player.bios > 0 {
-            translate!(ctx, "your-bios", amount: player.bios)
+            translate!(ctx, "your-bios", amount: Parse::num_with_commas(player.bios as i32))
         } else {
             translate!(ctx, "empty-bios")
         };
@@ -103,7 +103,7 @@ impl Response {
                 ctx,
                 CreateInteractionResponseFollowup::new()
                     .allowed_mentions(crate::mentions())
-                    .components(Button::choose(ctx, false))
+                    .components(Button::display_buttons(ctx, false, true))
                     .content(format!("{}\n{}", round_info, content)),
             )
             .await?;
@@ -126,7 +126,7 @@ impl Response {
         let a = contradict.players.first().unwrap();
         let b = contradict.players.last().unwrap();
 
-        let sub_content = translate!(ctx, "contradict-bet-info", a: &a.name, aBios: a.current_bet, b: &b.name, bBios: b.current_bet);
+        let sub_content = translate!(ctx, "contradict-bet-info", a: &a.name, aBios: Parse::num_with_commas(a.current_bet as i32), b: &b.name, bBios: Parse::num_with_commas(b.current_bet as i32));
 
         inter
             .edit_followup(
@@ -134,8 +134,8 @@ impl Response {
                 message_id,
                 CreateInteractionResponseFollowup::new()
                     .allowed_mentions(crate::mentions())
-                    .content(format!("{}\n\n{}", content, sub_content))
-                    .components(Button::bet(ctx, true)),
+                    .content(format!("{}\n{}", sub_content, content))
+                    .components(Button::display_buttons(ctx, true, true)),
             )
             .await?;
 
@@ -198,7 +198,7 @@ impl Response {
                 message_id,
                 CreateInteractionResponseFollowup::new()
                     .content(content)
-                    .components(Button::bet(ctx, false)),
+                    .components(Button::display_buttons(ctx, true, false)),
             )
             .await?;
 
@@ -206,8 +206,8 @@ impl Response {
     }
 
     pub async fn request(ctx: Context<'_>, user: &User, bios: i32) -> Result<Message, Error> {
-        let content =
-            translate!(ctx, "contradict-request", user: user.mention().to_string(), bios: bios);
+        let abbreviate = Parse::abbreviate_number(bios);
+        let content = translate!(ctx, "contradict-request", user: user.mention().to_string(), bios: abbreviate);
 
         let message = ctx
             .send(
@@ -263,7 +263,7 @@ impl Response {
                 CreateInteractionResponse::UpdateMessage(
                     CreateInteractionResponseMessage::new()
                         .content(content)
-                        .components(Button::choose(ctx, false))
+                        .components(Button::display_buttons(ctx, false, true))
                         .allowed_mentions(crate::mentions()),
                 ),
             )
@@ -309,7 +309,7 @@ impl Response {
                 message_id,
                 CreateInteractionResponseFollowup::new()
                     .content(content)
-                    .components(Button::bet(ctx, false)),
+                    .components(Button::display_buttons(ctx, true, false)),
             )
             .await?;
 
@@ -318,24 +318,25 @@ impl Response {
 }
 
 impl Button {
-    fn choose(ctx: Context<'_>, disabled: bool) -> Vec<CreateActionRow> {
-        vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
-            "{}_choose",
-            ctx.id()
-        ))
-        .style(ButtonStyle::Secondary)
-        .label(translate!(ctx, "choose-object-btn"))
-        .disabled(disabled)])]
+    fn display_buttons(ctx: Context<'_>, choose: bool, bet: bool) -> Vec<CreateActionRow> {
+        vec![CreateActionRow::Buttons(vec![
+            Self::choose(ctx, choose),
+            Self::bet(ctx, bet),
+        ])]
     }
 
-    fn bet(ctx: Context<'_>, disabled: bool) -> Vec<CreateActionRow> {
-        vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
-            "{}_bet",
-            ctx.id()
-        ))
-        .style(ButtonStyle::Secondary)
-        .disabled(disabled)
-        .label(translate!(ctx, "bet-btn"))])]
+    fn choose(ctx: Context<'_>, disabled: bool) -> CreateButton {
+        CreateButton::new(format!("{}_choose", ctx.id()))
+            .style(ButtonStyle::Secondary)
+            .label(translate!(ctx, "choose-object"))
+            .disabled(disabled)
+    }
+
+    fn bet(ctx: Context<'_>, disabled: bool) -> CreateButton {
+        CreateButton::new(format!("{}_bet", ctx.id()))
+            .style(ButtonStyle::Secondary)
+            .disabled(disabled)
+            .label(translate!(ctx, "bet-bios"))
     }
 
     fn objects(
