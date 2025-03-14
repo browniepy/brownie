@@ -17,7 +17,7 @@ pub async fn build() -> Result<Client, Error> {
         commands::profile::inventory(),
         commands::profile::message(),
         commands::work::work(),
-        commands::contradiction::contradiction(),
+        commands::contradiction::contradict(),
         commands::nim::nim(),
         commands::dices::dices(),
         commands::system::shop(),
