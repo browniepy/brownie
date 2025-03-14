@@ -344,6 +344,10 @@ impl Contradiction {
         }
     }
 
+    pub fn empty_objects(&self) -> bool {
+        self.weapons.iter().all(|weapon| weapon.used)
+    }
+
     pub fn select_weapon(&mut self, index: usize) {
         self.selected_weapon = Some(index);
     }
