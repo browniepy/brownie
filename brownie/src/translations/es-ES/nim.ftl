@@ -1,6 +1,6 @@
 nim = nim
     .description = Juego de nim tipo cero
-    .user = user
+    .user = usuario
     .user-description = Usuario rival de la apuesta
     .bios = bios
     .bios-description = Cantidad de bios para apostar
