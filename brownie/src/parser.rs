@@ -21,18 +21,14 @@ impl Parse {
 
     pub fn format_seconds(seconds: u64) -> String {
         if seconds < 60 {
-            // Si es menos de un minuto, solo mostramos los segundos
             format!("{}s", seconds)
         } else {
-            // Si es un minuto o más, calculamos minutos y segundos restantes
             let minutes = seconds / 60;
             let remaining_seconds = seconds % 60;
 
             if remaining_seconds == 0 {
-                // Si no hay segundos restantes, solo mostramos los minutos
                 format!("{}m", minutes)
             } else {
-                // Si hay segundos restantes, mostramos ambos
                 format!("{}m{}s", minutes, remaining_seconds)
             }
         }
@@ -48,6 +44,40 @@ impl Parse {
             _ => number.to_string(),
         }
     }
+
+    pub fn abbreviation_to_number(value: &str) -> Result<i32, Error> {
+        if let Ok(num) = value.parse::<i32>() {
+            return Ok(num);
+        }
+
+        let lowercase = value.to_lowercase();
+
+        if lowercase == "all" || lowercase == "half" {
+            return Err("Palabra reservada, debe procesarse en la función amount".into());
+        }
+
+        let last_char = lowercase.chars().last().unwrap_or_default();
+
+        let multiplier = match last_char {
+            'k' => 1_000,
+            'm' => 1_000_000,
+            'b' => 1_000_000_000,
+            _ => {
+                return Err(
+                    "Formato no válido. Usa un número o abreviaturas como '1k', '2.5m', '1b'"
+                        .into(),
+                )
+            }
+        };
+
+        let numeric_part = &lowercase[0..lowercase.len() - 1];
+
+        match numeric_part.parse::<f64>() {
+            Ok(num) => Ok((num * multiplier as f64) as i32),
+            Err(_) => Err("Formato de número no válido".into()),
+        }
+    }
+
     pub async fn amount(
         ctx: Context<'_>,
         user_id: UserId,
@@ -56,45 +86,34 @@ impl Parse {
         let member = get_member(ctx, user_id).await?;
         let read = member.read().await;
 
-        Ok(match amount {
-            Some(amount) => match amount.parse::<i32>() {
-                Ok(val) => {
-                    if val < 500 {
-                        return Err("No puedes apostar menos de 500".into());
-                    }
+        const MIN_BET: i32 = 500;
 
-                    if val > read.balance {
-                        return Err("No tienes suficiente dinero".into());
-                    }
+        if read.balance < MIN_BET {
+            return Err("No tienes suficiente dinero".into());
+        }
 
-                    val
-                }
-                Err(_) => match amount.to_lowercase().as_str() {
-                    "all" => {
-                        if read.balance < 500 {
-                            return Err("No tienes suficiente dinero".into());
-                        }
+        let amount_str = match amount {
+            Some(amt) => amt,
+            None => return Ok(MIN_BET),
+        };
 
-                        read.balance
-                    }
-                    "half" => {
-                        if read.balance < 500 {
-                            return Err("No tienes suficiente dinero".into());
-                        }
+        match amount_str.to_lowercase().as_str() {
+            "all" => return Ok(read.balance),
+            "half" => return Ok(read.balance / 2),
+            _ => {}
+        }
 
-                        read.balance / 2
-                    }
-                    _ => return Err("Error".into()),
-                },
-            },
-            None => {
-                if read.balance > 500 {
-                    500
-                } else {
-                    return Err("No tienes suficiente dinero".into());
-                }
-            }
-        })
+        let parsed_amount = Self::abbreviation_to_number(&amount_str)?;
+
+        if parsed_amount < MIN_BET {
+            return Err(format!("No puedes apostar menos de {}", MIN_BET).into());
+        }
+
+        if parsed_amount > read.balance {
+            return Err("No tienes suficiente dinero".into());
+        }
+
+        Ok(parsed_amount)
     }
 
     pub fn dice_choice(choice: String) -> Result<Selection, Error> {
