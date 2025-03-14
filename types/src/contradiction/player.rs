@@ -1,4 +1,3 @@
-use inflector::Inflector;
 use itertools::Itertools;
 use poise::serenity_prelude::{Mentionable, Message, User, UserId};
 
