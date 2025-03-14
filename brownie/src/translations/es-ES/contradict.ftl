@@ -1,3 +1,10 @@
+contradict = contradicción
+    .description = Juego de contradicción
+    .user = usuario
+    .user-description = Usuario rival de la apuesta
+    .bios = bios
+    .bios-description = Cantidad de bios para apostar
+
 iron = Hierro
 wood = Madera
 rubber = Caucho
