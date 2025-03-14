@@ -287,14 +287,20 @@ impl Contradiction {
         self.invert_roles();
     }
 
-    /// check if the game has to end
     pub fn to_end(&self) -> bool {
         self.get_loser().is_some()
     }
 
-    /// check if only one shield and weapon are left
     pub fn only_one_object_left(&self) -> bool {
         self.weapons.len() == 1 && self.shields.len() == 1
+    }
+
+    pub fn check_empty_bios(&mut self) {
+        if self.players.iter().all(|player| player.bios == 0) {
+            for player in self.players.iter_mut() {
+                player.bios += 500;
+            }
+        }
     }
 
     pub fn init_roles(&mut self) {
@@ -334,14 +340,6 @@ impl Contradiction {
         let p2 = self.players.last().unwrap();
 
         p1.current_bet == p2.current_bet
-    }
-
-    pub fn check_zero_bios(&mut self) {
-        for player in self.players.iter_mut() {
-            if player.bios == 0 {
-                player.current_bet = 0;
-            }
-        }
     }
 
     pub fn empty_objects(&self) -> bool {

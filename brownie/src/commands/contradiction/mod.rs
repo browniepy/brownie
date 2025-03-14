@@ -217,6 +217,7 @@ pub async fn contradict(ctx: Context<'_>, user: User, bios: Option<String>) -> R
                         }
 
                         tokio::time::sleep(Duration::from_secs(3)).await;
+                        contradict.check_empty_bios();
 
                         if contradict.empty_objects() {
                             contradict.setup_next_round();
