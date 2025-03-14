@@ -353,8 +353,11 @@ impl Contradiction {
     }
 
     pub fn delete_stock(&mut self) {
-        self.weapons.remove(self.selected_weapon.unwrap());
-        self.shields.remove(self.selected_shield.unwrap());
+        let weapon = self.weapons.get_mut(self.selected_weapon.unwrap()).unwrap();
+        weapon.used = true;
+
+        let shield = self.shields.get_mut(self.selected_shield.unwrap()).unwrap();
+        shield.used = true;
     }
 
     pub fn reset_selections(&mut self) {
