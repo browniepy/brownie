@@ -85,6 +85,19 @@ pub async fn items_auto<'a>(ctx: Context<'_>, partial: &'a str) -> impl Stream<I
     .map(|name| name.to_string())
 }
 
+pub async fn dices_auto<'a>(
+    _ctx: Context<'_>,
+    partial: &'a str,
+) -> impl Stream<Item = String> + 'a {
+    let choices = vec!["Pair", "Unpair"];
+
+    futures::stream::iter(choices)
+        .filter(move |name| {
+            futures::future::ready(name.to_lowercase().contains(&partial.to_lowercase()))
+        })
+        .map(|name| name.to_string())
+}
+
 #[derive(poise::ChoiceParameter)]
 pub enum Game {
     Contradict,
@@ -99,7 +112,7 @@ impl std::fmt::Display for Game {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Game::Contradict => write!(f, "Contradict"),
-            Game::NimTypeZero => write!(f, "Nim Type Zero"),
+            Game::NimTypeZero => write!(f, "NimTypeZero"),
             Game::BlackJack => write!(f, "BlackJack"),
             Game::RussianRoulette => write!(f, "Rr"),
             Game::Dices => write!(f, "Dices"),
