@@ -17,10 +17,10 @@ contradict-request =
     En juego { $bios } bios
 
 contradict-choose-phase =
-    Elijan sus objetos
+    Elijan el tipo de espada y escudo
 
-contradict-start = =
-    { $defender } inicia siendo el defensor
+contradict-start =
+    Inicia el juego
     { contradict-choose-phase }
 
 contradict-bet-phase =
@@ -28,11 +28,50 @@ contradict-bet-phase =
     Hagan sus apuestas de bios
 
 contradict-bet-draw =
-    Hagan sus apuestas otra vez
+    Empate de apuestas
+    Por favor, vuelvan a apostar bios
 
 contradict-end =
     { $loser } perdió en juego de contradicción
     El ganador es { $winner }
 
 contradict-round-info =
-    { $gnumber } juego, { $rnumber } ronda
+    { $gnumber } juego { $rnumber } ronda
+
+contradict-bet-info =
+    { $aBios } bios vs { $bBios } bios
+
+
+gun-iron =
+    { $defender } ha usado el escudo de { iron }
+    La bala fue desviada
+
+gun-wood-rubber =
+    { $defender } ha usado el escudo de { $material }
+    La bala atravesó el escudo
+
+
+katana-iron =
+    { $defender } ha usado el escudo de { iron }
+    La katana fue bloqueada
+
+katana-rubber =
+    { $defender } ha usado el escudo de { rubber }
+    La katana lo cortó un poco
+
+katana-wood =
+    { $defender } ha usado el escudo de { wood }
+    La katana lo cortó gravemente
+
+
+taser-iron =
+    { $defender } ha usado el escudo de { iron }
+    Recibió una descarga fuerte
+
+taser-rubber =
+    { $defender } ha usado el escudo de { rubber }
+    Bloqueó la descarga del taser
+
+taser-wood =
+    { $defender } ha usado el escudo de { wood }
+    Casi no sintió la descarga

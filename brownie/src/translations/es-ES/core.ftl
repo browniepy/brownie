@@ -38,4 +38,6 @@ accept = Aceptar
 decline = Declinar
 choose-object = Elegir objeto
 bet = Apostar
+bet-bios = Apostar bios
+choose = Elegir
 choose-card = Elegir carta
