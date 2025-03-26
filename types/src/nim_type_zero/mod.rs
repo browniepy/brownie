@@ -1,20 +1,22 @@
 mod player;
-pub use player::Player;
 
 use super::{cards::nim_zero::Card, Error};
+pub use player::Player;
 use poise::serenity_prelude::{MessageId, UserId};
+use std::time::Duration;
 
+#[derive(Clone)]
 pub struct Nim {
     pub players: Vec<Player>,
     pub deck: Vec<Card>,
     pub table_cards: Vec<Card>,
     pub ephemeral: Option<MessageId>,
-    pub bet: i32,
+    pub bet: i64,
     last_played_card: Option<Card>,
 }
 
 impl Nim {
-    pub fn new(player: Player, bet: i32) -> Self {
+    pub fn new(player: Player, bet: i64) -> Self {
         Self {
             players: vec![player],
             deck: Card::standart_deck(),
@@ -31,6 +33,11 @@ impl Nim {
         }
 
         self.players.push(player);
+        Ok(())
+    }
+
+    pub fn add_machine(&mut self) -> Result<(), Error> {
+        self.add_player(Player::new(None, true))?;
         Ok(())
     }
 
@@ -66,7 +73,7 @@ impl Nim {
     }
 
     pub fn hand_is_empty(&self) -> bool {
-        self.current_player().hand.is_empty()
+        self.current_player().hand.iter().all(|card| card.disabled)
     }
 
     pub fn one_card_left(&self) -> bool {
@@ -80,7 +87,75 @@ impl Nim {
         }
     }
 
-    pub fn play_card(&mut self, index: usize) {
+    pub async fn bot_play(&mut self) -> Result<(), Error> {
+        if !self.current_player().is_bot() {
+            return Err("player is not a bot".into());
+        }
+
+        let available_cards: Vec<(usize, &Card)> = self
+            .current_player()
+            .hand
+            .iter()
+            .enumerate()
+            .filter(|(_, card)| !card.disabled)
+            .collect();
+
+        if available_cards.is_empty() {
+            return Err("bot has no available cards".into());
+        }
+
+        let min_card_index = || {
+            available_cards
+                .iter()
+                .min_by_key(|(_, card)| card.value())
+                .map(|(idx, _)| *idx)
+                .unwrap()
+        };
+
+        let find_card_with_value_or_min = |value| {
+            available_cards
+                .iter()
+                .find(|(_, card)| card.value() == value)
+                .map(|(idx, _)| *idx)
+                .unwrap_or_else(min_card_index)
+        };
+
+        let prioritize_one_index = || {
+            if self.table_value() < 9 {
+                let one_card = available_cards.iter().find(|(_, card)| card.value() == 1);
+
+                if let Some((idx, _)) = one_card {
+                    return *idx;
+                }
+            }
+
+            let zero_card = available_cards.iter().find(|(_, card)| card.value() == 0);
+
+            if let Some((idx, _)) = zero_card {
+                return *idx;
+            }
+
+            min_card_index()
+        };
+
+        let index = if self.table_value() == 9 {
+            min_card_index()
+        } else {
+            match self.table_value() % 4 {
+                0 => find_card_with_value_or_min(1),
+                1 => prioritize_one_index(),
+                2 => find_card_with_value_or_min(3),
+                3 => find_card_with_value_or_min(2),
+                _ => min_card_index(),
+            }
+        };
+
+        self.play_card(index).await?;
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        Ok(())
+    }
+
+    pub async fn play_card(&mut self, index: usize) -> Result<(), Error> {
         {
             let card = self.mut_current_player().hand.get_mut(index).unwrap();
             card.disabled = true;
@@ -89,17 +164,7 @@ impl Nim {
         let card = self.current_player().hand.get(index).unwrap().clone();
         self.table_cards.push(card.clone());
         self.last_played_card = Some(card);
-    }
-
-    pub fn play_unique_card(&mut self) {
-        let index = self
-            .current_player()
-            .hand
-            .iter()
-            .position(|card| !card.disabled)
-            .unwrap();
-
-        self.play_card(index);
+        Ok(())
     }
 
     pub fn last_played_card(&self) -> &Card {
