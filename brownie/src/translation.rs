@@ -114,45 +114,46 @@ pub fn read_ftl() -> Result<Translations, Error> {
     Ok(Translations { main, other })
 }
 
-/// Given a set of language files, fills in command strings and their localizations accordingly
 pub fn apply_translations(
     translations: &Translations,
     commands: &mut [poise::Command<Data, Error>],
 ) {
     for command in &mut *commands {
-        // Add localizations
         for (locale, bundle) in &translations.other {
-            // Insert localized command name and description
-            let localized_command_name = match format(bundle, &command.name, None, None) {
-                Some(x) => x,
-                None => continue, // no localization entry => skip localization
+            let command_name = command.identifying_name.clone();
+
+            let localized_command_name = match format(bundle, &command_name, None, None) {
+                Some(name) => name,
+                None => continue,
             };
+
             command
                 .name_localizations
                 .insert(locale.clone(), localized_command_name);
+
             command.description_localizations.insert(
                 locale.clone(),
-                format(bundle, &command.name, Some("description"), None).unwrap(),
+                format(bundle, &command_name, Some("description"), None).unwrap(),
             );
 
             for parameter in &mut command.parameters {
-                // Insert localized parameter name and description
                 parameter.name_localizations.insert(
                     locale.clone(),
-                    format(bundle, &command.name, Some(&parameter.name), None).unwrap(),
+                    format(bundle, &command_name, Some(&parameter.name), None).unwrap_or_else(
+                        || panic!("translation failed for parameter {}", &parameter.name),
+                    ),
                 );
                 parameter.description_localizations.insert(
                     locale.clone(),
                     format(
                         bundle,
-                        &command.name,
+                        &command_name,
                         Some(&format!("{}-description", parameter.name)),
                         None,
                     )
                     .unwrap(),
                 );
 
-                // If this is a choice parameter, insert its localized variants
                 for choice in &mut parameter.choices {
                     choice.localizations.insert(
                         locale.clone(),
@@ -160,27 +161,68 @@ pub fn apply_translations(
                     );
                 }
             }
+
+            for subcommand in &mut *command.subcommands {
+                let subcommand_name = format!(
+                    "{}-{}",
+                    command.identifying_name, subcommand.identifying_name
+                );
+
+                let localized_subcommand_name = match format(bundle, &subcommand_name, None, None) {
+                    Some(x) => x,
+                    None => continue,
+                };
+
+                subcommand
+                    .name_localizations
+                    .insert(locale.clone(), localized_subcommand_name);
+
+                subcommand.description_localizations.insert(
+                    locale.clone(),
+                    format(bundle, &subcommand_name, Some("description"), None).unwrap(),
+                );
+
+                for parameter in &mut subcommand.parameters {
+                    parameter.name_localizations.insert(
+                        locale.clone(),
+                        format(bundle, &subcommand_name, Some(&parameter.name), None).unwrap(),
+                    );
+                    parameter.description_localizations.insert(
+                        locale.clone(),
+                        format(
+                            bundle,
+                            &subcommand_name,
+                            Some(&format!("{}-description", parameter.name)),
+                            None,
+                        )
+                        .unwrap(),
+                    );
+
+                    for choice in &mut parameter.choices {
+                        choice.localizations.insert(
+                            locale.clone(),
+                            format(bundle, &choice.name, None, None).unwrap(),
+                        );
+                    }
+                }
+            }
         }
 
-        // At this point, all translation files have been applied. However, if a user uses a locale
-        // we haven't explicitly inserted, there would be no translations at all -> blank texts. So,
-        // we use the "main" translation file (en-US) as the non-localized strings.
-
-        // Set fallback command name and description to en-US
+        // fallback to main locale
         let bundle = &translations.main;
-        match format(bundle, &command.name, None, None) {
-            Some(x) => command.name = x,
-            None => continue, // no localization entry => keep hardcoded names
+        let command_name = command.identifying_name.clone();
+
+        match format(bundle, &command_name, None, None) {
+            Some(name) => command.name = name,
+            None => continue,
         }
+
         command.description =
-            Some(format(bundle, &command.name, Some("description"), None).unwrap());
+            Some(format(bundle, &command_name, Some("description"), None).unwrap());
 
         for parameter in &mut command.parameters {
-            // Set fallback parameter name and description to en-US
             parameter.name = format(bundle, &command.name, Some(&parameter.name), None).unwrap();
 
-            println!("{}", command.name);
-            println!("{}", parameter.name);
             parameter.description = Some(
                 format(
                     bundle,
@@ -191,9 +233,42 @@ pub fn apply_translations(
                 .unwrap(),
             );
 
-            // If this is a choice parameter, set the choice names to en-US
             for choice in &mut parameter.choices {
                 choice.name = format(bundle, &choice.name, None, None).unwrap();
+            }
+        }
+
+        for subcommand in &mut command.subcommands {
+            let subcommand_name = format!(
+                "{}-{}",
+                command.identifying_name, subcommand.identifying_name
+            );
+
+            match format(bundle, &subcommand_name, None, None) {
+                Some(name) => subcommand.name = name,
+                None => continue,
+            }
+
+            subcommand.description =
+                Some(format(bundle, &subcommand_name, Some("description"), None).unwrap());
+
+            for parameter in &mut subcommand.parameters {
+                parameter.name =
+                    format(bundle, &subcommand_name, Some(&parameter.name), None).unwrap();
+
+                parameter.description = Some(
+                    format(
+                        bundle,
+                        &subcommand_name,
+                        Some(&format!("{}-description", parameter.name)),
+                        None,
+                    )
+                    .unwrap(),
+                );
+
+                for choice in &mut parameter.choices {
+                    choice.name = format(bundle, &choice.name, None, None).unwrap();
+                }
             }
         }
     }
