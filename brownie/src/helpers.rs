@@ -1,3 +1,4 @@
+use crate::commands::choice::Game;
 use database::structs::{Member, System};
 use poise::serenity_prelude::{CreateAllowedMentions, UserId};
 use std::sync::Arc;
@@ -83,7 +84,7 @@ pub struct PointsRevenue {
     pub loser: i32,
 }
 
-pub fn points_revenue(bet: i32) -> PointsRevenue {
+pub fn points_revenue(bet: i64) -> PointsRevenue {
     let winner = (bet as f32 * 0.1) as i32;
     let loser = (bet as f32 * 0.01) as i32;
     PointsRevenue { winner, loser }
@@ -93,18 +94,18 @@ pub async fn add_win_points(
     ctx: Context<'_>,
     winner: UserId,
     loser: UserId,
-    bet: i32,
+    bet: i64,
 ) -> Result<(), Error> {
     let data = ctx.data();
     let revenue = points_revenue(bet);
 
     let winner = get_member(ctx, winner).await?;
     let mut write = winner.write().await;
-    write.add_points(revenue.winner, &data.pool).await?;
+    write.add_points(&data.pool, revenue.winner).await?;
 
     let loser = get_member(ctx, loser).await?;
     let mut write = loser.write().await;
-    write.add_points(revenue.loser, &data.pool).await?;
+    write.add_points(&data.pool, revenue.loser).await?;
 
     Ok(())
 }
@@ -112,7 +113,7 @@ pub async fn add_win_points(
 pub async fn charge_single_bet(
     ctx: Context<'_>,
     id: UserId,
-    bet: i32,
+    bet: i64,
     winner: bool,
 ) -> Result<(), Error> {
     let data = ctx.data();
@@ -123,11 +124,11 @@ pub async fn charge_single_bet(
     let points_revenue = points_revenue(bet);
 
     if winner {
-        write.add_balalance(bet, &data.pool).await?;
-        write.add_points(points_revenue.winner, &data.pool).await?;
+        write.add_bios(&data.pool, bet).await?;
+        write.add_points(&data.pool, points_revenue.winner).await?;
     } else {
-        write.remove_balance(bet, &data.pool).await?;
-        write.add_points(points_revenue.loser, &data.pool).await?;
+        write.remove_bios(&data.pool, bet).await?;
+        write.add_points(&data.pool, points_revenue.loser).await?;
     }
 
     Ok(())
@@ -137,58 +138,39 @@ pub async fn charge_bet(
     ctx: Context<'_>,
     winner: UserId,
     loser: UserId,
-    bet: i32,
+    bet: i64,
+    game: Game,
 ) -> Result<(), Error> {
     let data = ctx.data();
 
-    // Optimización: Obtener ambos usuarios de manera paralela
     let (winner_member, loser_member) =
         tokio::join!(get_member(ctx, winner), get_member(ctx, loser));
 
     let winner_member = winner_member?;
     let loser_member = loser_member?;
 
-    // Procesamiento del perdedor
-    let revenue;
-    let debt;
     {
-        let mut loser_write = loser_member.write().await;
-
-        if loser_write.balance >= bet {
-            // Caso simple: el perdedor tiene suficiente saldo
-            loser_write.remove_balance(bet, &data.pool).await?;
-            revenue = bet;
-            debt = 0;
-        } else {
-            // Caso con deuda: el perdedor no tiene suficiente saldo
-            debt = bet - loser_write.balance;
-            revenue = bet - debt;
-
-            loser_write.remove_balance(revenue, &data.pool).await?;
-            loser_write
-                .set_debt(winner.into(), debt, &data.pool)
-                .await?;
-        }
+        let mut write = winner_member.write().await;
+        write.add_bios(&data.pool, bet).await?;
+        write.add_victory(&data.pool, game.to_string()).await?;
     }
 
-    // Procesamiento del ganador
     {
-        let mut winner_write = winner_member.write().await;
-        winner_write.add_balalance(revenue, &data.pool).await?;
+        let mut write = loser_member.write().await;
+        write.remove_bios(&data.pool, bet).await?;
+        write.add_defeat(&data.pool, game.to_string()).await?;
     }
 
-    // Agregar puntos por la victoria
     add_win_points(ctx, winner, loser, bet).await?;
-
     Ok(())
 }
 
-pub async fn can_partial_bet(ctx: Context<'_>, id: UserId, bet: i32) -> Result<bool, Error> {
+pub async fn can_partial_bet(ctx: Context<'_>, id: UserId, bet: i64) -> Result<bool, Error> {
     let player = get_member(ctx, id).await?;
     let player_read = player.read().await;
 
-    let required_bal = (bet as f32 * 1.0) as i32;
-    Ok(player_read.balance >= required_bal)
+    let required_bal = (bet as f32 * 1.0) as i64;
+    Ok(player_read.get_bios() >= required_bal)
 }
 
 pub fn mentions() -> CreateAllowedMentions {
@@ -196,4 +178,22 @@ pub fn mentions() -> CreateAllowedMentions {
         .everyone(false)
         .replied_user(false)
         .all_users(false)
+}
+
+pub async fn set_gamble(ctx: Context<'_>, user_id: UserId) -> Result<(), Error> {
+    let member = get_member(ctx, user_id).await?;
+    let mut member_write = member.write().await;
+    member_write.in_gamble = true;
+
+    Ok(())
+}
+
+pub async fn free_gamble(ctx: Context<'_>, users_ids: Vec<UserId>) -> Result<(), Error> {
+    for user_id in users_ids {
+        let member = get_member(ctx, user_id).await?;
+        let mut member_write = member.write().await;
+        member_write.in_gamble = false;
+    }
+
+    Ok(())
 }
