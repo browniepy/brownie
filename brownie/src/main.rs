@@ -1,10 +1,8 @@
-use database::structs::{Member, System};
-pub use database::{Cache, PgPool};
-
-use inflector::Inflector;
-pub use poise::serenity_prelude as serenity;
-use serenity::UserId;
-
+use database::{
+    structs::{Member, System},
+    Cache, PgPool,
+};
+use poise::serenity_prelude::UserId;
 pub use std::{sync::Arc, time::Duration};
 pub use tokio::sync::{Mutex, RwLock};
 
@@ -32,91 +30,15 @@ pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    ::tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt::init();
 
     let mut client = client::build().await?;
-    client.start().await.map_err(Into::into)
-}
+    let shard_manager = client.shard_manager.clone();
 
-use futures::{Stream, StreamExt};
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.unwrap();
+        shard_manager.shutdown_all().await;
+    });
 
-pub async fn debts_auto<'a>(ctx: Context<'_>, partial: &'a str) -> impl Stream<Item = String> + 'a {
-    let player = helpers::get_member(ctx, ctx.author().id).await.unwrap();
-    let read = player.read().await;
-
-    let mut debt_users = Vec::new();
-
-    for id in read.get_debt_users().iter() {
-        let name = ctx
-            .http()
-            .get_user(UserId::new(*id as u64))
-            .await
-            .unwrap()
-            .display_name()
-            .to_title_case();
-        debt_users.push(name);
-    }
-
-    if debt_users.is_empty() {
-        debt_users.push(String::from("Empty"))
-    }
-
-    futures::stream::iter(debt_users)
-        .filter(move |name| {
-            futures::future::ready(name.to_lowercase().contains(&partial.to_lowercase()))
-        })
-        .map(|name| name.to_string())
-}
-
-pub async fn items_auto<'a>(ctx: Context<'_>, partial: &'a str) -> impl Stream<Item = String> + 'a {
-    let player = helpers::get_member(ctx, ctx.author().id).await.unwrap();
-    let read = player.read().await;
-
-    futures::stream::iter(
-        read.clone()
-            .inventory
-            .values()
-            .map(|item| item.name.clone().unwrap())
-            .collect::<Vec<_>>(),
-    )
-    .filter(move |name| {
-        futures::future::ready(name.to_lowercase().contains(&partial.to_lowercase()))
-    })
-    .map(|name| name.to_string())
-}
-
-pub async fn dices_auto<'a>(
-    _ctx: Context<'_>,
-    partial: &'a str,
-) -> impl Stream<Item = String> + 'a {
-    let choices = vec!["Pair", "Unpair"];
-
-    futures::stream::iter(choices)
-        .filter(move |name| {
-            futures::future::ready(name.to_lowercase().contains(&partial.to_lowercase()))
-        })
-        .map(|name| name.to_string())
-}
-
-#[derive(poise::ChoiceParameter)]
-pub enum Game {
-    Contradict,
-    NimTypeZero,
-    BlackJack,
-    RussianRoulette,
-    Dices,
-    Falaris,
-}
-
-impl std::fmt::Display for Game {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Game::Contradict => write!(f, "Contradict"),
-            Game::NimTypeZero => write!(f, "NimTypeZero"),
-            Game::BlackJack => write!(f, "BlackJack"),
-            Game::RussianRoulette => write!(f, "Rr"),
-            Game::Dices => write!(f, "Dices"),
-            Game::Falaris => write!(f, "Falaris"),
-        }
-    }
+    client.start_autosharded().await.map_err(Into::into)
 }
