@@ -4,13 +4,12 @@ CREATE TABLE agent_slots (
     occupied boolean DEFAULT FALSE
 );
 
-CREATE FUNCTION create_club (leader bigint, club_name varchar(255), agent_role_name varchar(255))
+CREATE FUNCTION create_club (leader bigint, club_name varchar(255), leader_role_name varchar(255), agent_role_name varchar(255), member_role_name varchar(255))
     RETURNS VOID
     AS $$
 DECLARE
     club_id bigint;
     agent_limit int;
-    leader_role_name varchar(255);
 BEGIN
     INSERT INTO club (leader, name)
         VALUES (leader, club_name)
@@ -18,21 +17,20 @@ BEGIN
         id INTO club_id;
 
     INSERT INTO club_role (club, tr_key, authority, authority_id)
-        VALUES (club_id, 'leader', 100, 'Leader')
-    RETURNING
-        tr_key INTO leader_role_name;
+        VALUES (club_id, leader_role_name, 100, 'Leader');
+
     INSERT INTO club_limits (club, role_name, member_limit)
         VALUES (club_id, leader_role_name, 1);
 
     IF leader IS NOT NULL THEN
         INSERT INTO club_member (club, member, tr_key)
-            VALUES (club_id, leader, 'leader');
+            VALUES (club_id, leader, leader_role_name);
     END IF;
 
     INSERT INTO club_role (club, tr_key, authority, authority_id)
-        VALUES (club_id, 'member', 10, 'Member');
+        VALUES (club_id, member_role_name, 10, 'Member');
     INSERT INTO club_limits (club, role_name, member_limit)
-        VALUES (club_id, 'member', 48);
+        VALUES (club_id, member_role_name, 48);
 
     INSERT INTO club_role (club, tr_key, authority, authority_id)
         VALUES (club_id, agent_role_name, 70, 'Agent');
@@ -59,5 +57,4 @@ CREATE TABLE IF NOT EXISTS agent_relation (
 );
 
 SELECT
-    create_club (NULL, 'Kakerou', 'Referee');
-
+    create_club (NULL, 'Kakerou', 'leader', 'referee', 'member');
