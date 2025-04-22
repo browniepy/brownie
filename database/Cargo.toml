@@ -4,10 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+chrono = "0.4.40"
 color-thief = "0.2.2"
 moka = { version = "0.12.8", features = ["future"] }
+poise.workspace = true
 rand.workspace = true
-sqlx = { version = "0.8.2", features = ["postgres", "tls-native-tls", "runtime-tokio", "migrate"] }
+sqlx = { version = "0.8.2", features = [
+  "postgres",
+  "tls-native-tls",
+  "runtime-tokio",
+  "migrate",
+] }
 strum.workspace = true
-tokio = { version = "1.40.0", features = ["rt-multi-thread", "macros", "test-util"] }
+tokio = { version = "1.40.0", features = [
+  "rt-multi-thread",
+  "macros",
+  "test-util",
+  "sync",
+] }
 types = { version = "0.1.0", path = "../types" }

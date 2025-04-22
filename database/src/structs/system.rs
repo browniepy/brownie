@@ -1,15 +1,16 @@
 use sqlx::PgPool;
 
 use crate::{
-    models::{ItemShop, JobModel, LbMember, Role},
-    ErrorT,
+    models::{BoardMember, ItemType, JobModel, Quality, Role},
+    structs::{Item, Product},
+    Error,
 };
 
 #[derive(Clone, Debug)]
 pub struct System {
-    pub top_money: Vec<LbMember>,
-    pub top_level: Vec<LbMember>,
-    pub shop: Vec<ItemShop>,
+    pub top_money: Vec<BoardMember>,
+    pub top_level: Vec<BoardMember>,
+    pub shop: Vec<Product>,
     pub jobs: Vec<JobModel>,
 }
 
@@ -17,8 +18,8 @@ impl System {
     pub async fn new(pool: &PgPool) -> Self {
         // top 10 money
         let top_money = sqlx::query_as!(
-            LbMember,
-            "SELECT id, balance, points, level FROM member ORDER BY balance DESC LIMIT 10"
+            BoardMember,
+            "SELECT id, balance, points  FROM member ORDER BY balance DESC LIMIT 10"
         )
         .fetch_all(pool)
         .await
@@ -26,8 +27,8 @@ impl System {
 
         // top 10 points
         let top_level = sqlx::query_as!(
-            LbMember,
-            "SELECT id, balance, points, level FROM member ORDER BY points DESC LIMIT 10"
+            BoardMember,
+            "SELECT id, balance, points FROM member ORDER BY points DESC LIMIT 10"
         )
         .fetch_all(pool)
         .await
@@ -35,19 +36,38 @@ impl System {
 
         let jobs = sqlx::query_as!(
             JobModel,
-            "SELECT name, description, salary_range, required_role AS \"required_role: Role \", required_level, cooldown FROM job;"
+            "SELECT id, name, salary, required_role AS \"required_role: Role \", required_points, cooldown FROM job;"
         ).fetch_all(pool).await.unwrap();
 
         // select id, name, price, description from store table
-        let shop = sqlx::query_as!(
-            ItemShop,
-            "SELECT i.id, i.name, s.price, s.description
-            FROM item i JOIN
-            store s ON i.id = s.item;"
+        let shop = sqlx::query!(
+            "SELECT i.id, i.name, i.usable, i.quality AS \"quality: Quality\", item_type AS \"item_type: ItemType\", s.price
+            FROM normal_item i JOIN
+            normal_shop s ON i.id = s.item;"
         )
         .fetch_all(pool)
         .await
         .unwrap();
+
+        let shop = shop
+            .iter()
+            .map(|item| Product {
+                item: Item {
+                    id: Some(item.id),
+                    name: item.name.clone(),
+                    number: None,
+                    usable: item.usable,
+                    item_type: item.item_type.clone(),
+                    quality: item.quality.clone(),
+                    tool_type: None,
+                    armor_type: None,
+                    two_handed: false,
+                },
+                price: item.price.unwrap_or_default(),
+                stock: None,
+                description: None,
+            })
+            .collect::<Vec<Product>>();
 
         Self {
             top_money,
@@ -57,72 +77,59 @@ impl System {
         }
     }
 
+    pub async fn get_job_names(&self) -> Vec<String> {
+        self.jobs.iter().map(|job| job.name.clone()).collect()
+    }
+
     // get shop by desc price
-    pub async fn get_shop_desc(&self) -> Vec<ItemShop> {
+    pub async fn get_shop_desc(&self) -> Vec<Product> {
         let mut shop = self.shop.clone();
         shop.sort_by(|a, b| b.price.cmp(&a.price));
         shop
     }
 
     // get shop by asc price
-    pub async fn get_shop_asc(&self) -> Vec<ItemShop> {
+    pub async fn get_shop_asc(&self) -> Vec<Product> {
         let mut shop = self.shop.clone();
         shop.sort_by(|a, b| a.price.cmp(&b.price));
         shop
     }
 
-    pub async fn create_job(
-        &mut self,
-        pool: &PgPool,
-        name: String,
-        description: Option<String>,
-        salary_range: Vec<i32>,
-        required_level: i32,
-        cooldown: i32,
-    ) -> Result<(), ErrorT> {
-        sqlx::query!(
-            "INSERT INTO job (name, description, salary_range, required_level, cooldown) VALUES ($1, $2, $3, $4, $5)",
-            name, description, &salary_range, required_level, cooldown)
-            .execute(pool).await?;
+    pub async fn get_item_by_id(&self, pool: &PgPool, id: i32) -> Result<Item, Error> {
+        let item = sqlx::query!(
+            "SELECT id, name, usable, item_type AS \"item_type: ItemType \", quality AS \"quality: Quality \"
+            FROM normal_item WHERE id = $1",
+            id
+        )
+        .fetch_one(pool)
+        .await?;
 
-        self.jobs.push(JobModel {
-            name,
-            description,
-            salary_range: Some(salary_range),
-            required_role: None,
-            required_level,
-            cooldown,
-        });
+        let item = Item {
+            id: Some(item.id),
+            name: item.name,
+            number: None,
+            usable: item.usable,
+            quality: item.quality,
+            item_type: item.item_type,
+            tool_type: None,
+            armor_type: None,
+            two_handed: false,
+        };
 
-        Ok(())
+        Ok(item)
     }
-}
 
-pub async fn create_item(
-    pool: &PgPool,
-    name: String,
-    description: Option<String>,
-) -> Result<i32, ErrorT> {
-    let result = sqlx::query!(
-        "INSERT INTO item (name, description)
-    VALUES ($1, $2) RETURNING id;",
-        name,
-        description
-    )
-    .fetch_one(pool)
-    .await?;
+    pub fn paginate_shop(&self, page_size: usize) -> Vec<Vec<Product>> {
+        self.shop
+            .chunks(page_size)
+            .map(|chunk| chunk.to_vec())
+            .collect()
+    }
 
-    Ok(result.id)
-}
-
-pub async fn add_item_to_shop(pool: &PgPool, item_id: i32, price: i32) -> Result<(), ErrorT> {
-    sqlx::query!(
-        "INSERT INTO store (item, price) VALUES ($1, $2);",
-        item_id,
-        price
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
+    pub fn paginate_jobs(&self, page_size: usize) -> Vec<Vec<JobModel>> {
+        self.jobs
+            .chunks(page_size)
+            .map(|chunk| chunk.to_vec())
+            .collect()
+    }
 }

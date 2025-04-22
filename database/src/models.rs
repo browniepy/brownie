@@ -1,85 +1,179 @@
+use chrono::{DateTime, Utc};
 use sqlx::{FromRow, Type};
 
 #[derive(Debug, Clone, Type, PartialEq)]
-#[sqlx(type_name = "roles_enum")]
+#[sqlx(type_name = "role")]
 pub enum Role {
     Member,
     Referee,
     Leader,
-    Baku,
-    Slave,
-    User,
-    Pochi,
+    Player,
+}
+
+#[derive(Debug, Clone, Type, PartialEq)]
+#[sqlx(type_name = "club_item_type")]
+pub enum ClubItemType {
+    Membership,
+    Agent,
+}
+
+#[derive(Debug, Clone, Type, PartialEq)]
+#[sqlx(type_name = "authority_id")]
+pub enum AuthorityId {
+    Leader,
+    Agent,
+    Member,
+}
+
+#[derive(Debug, Clone, Type, PartialEq)]
+#[sqlx(type_name = "rpg_role")]
+pub enum RpgRole {
+    King,
+    Knight,
+}
+
+#[derive(Debug, Clone, Type, PartialEq)]
+#[sqlx(type_name = "item_type")]
+pub enum ItemType {
+    Equipment,
+    Tool,
+    Material,
+    Quest,
+    Misc,
+    Consumable,
+}
+
+#[derive(Debug, Clone, Type, PartialEq)]
+#[sqlx(type_name = "armor_type")]
+pub enum ArmorType {
+    Head,
+    Chest,
+    Legs,
+    Boots,
+    Neck,
+    Ring,
+}
+
+#[derive(Debug, Clone, Type, PartialEq)]
+#[sqlx(type_name = "tool_type")]
+pub enum Tool {
+    Weapon,
+    Shield,
+    Accessory,
+    Pickaxe,
+    Axe,
+}
+
+#[derive(Debug, Clone, Type, PartialEq)]
+#[sqlx(type_name = "quality")]
+pub enum Quality {
+    Common,
+    Normal,
+    Epic,
+    Masterpiece,
+}
+
+#[derive(Debug, Clone, Type, PartialEq)]
+#[sqlx(type_name = "rpg_class")]
+pub enum RpgClass {
+    Mage,
+    Warrior,
+    Archer,
 }
 
 #[derive(Debug, Clone, FromRow)]
-pub struct Debt {
-    pub to: Option<i64>,
-    pub amount: Option<i32>,
-}
-
-#[derive(Debug, Clone, FromRow)]
-pub struct LbMember {
+pub struct BoardMember {
     pub id: i64,
-    pub balance: i32,
+    pub balance: i64,
     pub points: i32,
-    pub level: i32,
 }
 
 #[derive(Debug, Clone, FromRow)]
 pub struct JobModel {
+    pub id: i32,
     pub name: String,
-    pub description: Option<String>,
-    pub salary_range: Option<Vec<i32>>,
+    pub salary: Vec<i32>,
     pub required_role: Option<Role>,
-    pub required_level: i32,
+    pub required_points: i32,
     pub cooldown: i32,
 }
 
 impl Default for JobModel {
     fn default() -> Self {
         Self {
-            name: String::default(),
-            description: None,
-            salary_range: None,
+            id: 0,
+            name: "none-work".to_string(),
+            salary: vec![700, 900],
             required_role: None,
-            required_level: 1,
-            cooldown: 3600,
+            required_points: 0,
+            cooldown: 300,
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+pub struct RefereeRelation {
+    pub member: i64,
+    pub referee: Option<i64>,
+}
+
+#[derive(Debug, Clone, FromRow)]
+pub struct AgentRelation {
+    pub member: i64,
+    pub agent: Option<i64>,
+}
+
+impl RefereeRelation {
+    pub fn relation(member: i64, referee: i64) -> Self {
+        Self {
+            member,
+            referee: Some(referee),
         }
     }
 }
 
 #[derive(Debug, Clone, FromRow)]
 pub struct MemberModel {
-    pub balance: i32,
-    pub roles: Option<Vec<Role>>,
-    pub points: i32,
+    pub balance: i64,
+    pub roles: Vec<Role>,
     pub referee_range: Option<i32>,
-    pub personal_referee: Option<i64>,
-    pub profile_text: Option<String>,
+    pub registered_at: DateTime<Utc>,
+    pub points: i32,
 }
 
 #[derive(Debug, Clone, FromRow)]
-pub struct StatModel {
-    pub game: String,
-    pub victories: i32,
-    pub defeats: i32,
-    pub victory_text: Option<String>,
-    pub defeat_text: Option<String>,
+pub struct Item {
+    pub id: i32,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, FromRow)]
 pub struct ItemInventory {
-    pub id: Option<i32>,
-    pub name: Option<String>,
-    pub description: Option<String>,
-    pub amount: Option<i32>,
+    pub id: i32,
+    pub name: String,
+    pub amount: i32,
+    pub usable: bool,
+    pub item_type: ItemType,
+    pub quality: Quality,
+    pub victim: Option<i64>,
+}
+
+#[derive(Debug, Clone, FromRow)]
+pub struct RpgItemInventory {
+    pub id: i32,
+    pub name: String,
+    pub amount: i32,
+    pub usable: bool,
+    pub tool: Option<Tool>,
+    pub item_type: ItemType,
+    pub armor_type: Option<ArmorType>,
+    pub two_handed: bool,
+    pub quality: Quality,
 }
 
 #[derive(Debug, Clone, FromRow)]
 pub struct ItemShop {
-    pub id: Option<i32>,
-    pub name: Option<String>,
-    pub price: Option<i32>,
-    pub description: Option<String>,
+    pub id: i32,
+    pub name: String,
+    pub price: i32,
 }
