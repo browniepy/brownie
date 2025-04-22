@@ -28,6 +28,13 @@ where
 
 impl Member {
     pub async fn build(pool: &PgPool, id: i64) -> Result<Self, Error> {
+        sqlx::query!(
+            "INSERT INTO member (id) VALUES ($1) ON CONFLICT (id) DO NOTHING",
+            id
+        )
+        .execute(pool)
+        .await?;
+
         let rpg = get_actual_rpg(pool).await?;
 
         let (balance, inventories, roles, state, club, job) = try_join!(
