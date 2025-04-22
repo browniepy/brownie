@@ -1,4 +1,4 @@
-use super::{Balance, Error, Inventories, Member, PgPool};
+use super::{get_actual_rpg, Balance, Error, Inventories, Member, PgPool};
 
 impl Member {
     pub fn in_rpg(&self) -> bool {
@@ -6,8 +6,10 @@ impl Member {
     }
 
     pub async fn refresh_profile(&mut self, pool: &PgPool) -> Result<(), Error> {
-        self.balance = Balance::build(pool, self.id).await?;
-        self.inventories = Inventories::build(pool, self.id).await?;
+        let rpg = get_actual_rpg(pool).await?;
+
+        self.balance = Balance::build(pool, self.id, rpg).await?;
+        self.inventories = Inventories::build(pool, self.id, rpg).await?;
 
         Ok(())
     }

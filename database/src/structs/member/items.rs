@@ -260,7 +260,7 @@ impl Member {
                 inventory.push(InventoryItem {
                     info: Item {
                         id: None,
-                        name: item.tr_key.clone(),
+                        name: item.item_tr_key.clone(),
                         number: None,
                         usable: false,
                         item_type: ItemType::Misc,

@@ -6,7 +6,7 @@ use crate::models::{
     AgentRelation, ArmorType, AuthorityId, ClubItemType, ItemType, JobModel, Quality, Role,
     RpgRole, Tool,
 };
-use sqlx::PgPool;
+use sqlx::{FromRow, PgPool};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
@@ -65,20 +65,20 @@ pub struct Roles {
     pub rpg: Option<RpgRoles>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, FromRow)]
 pub struct NormalRoles {
     pub roles: Vec<Role>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, FromRow)]
 pub struct RpgRoles {
     pub roles: Vec<RpgRole>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, FromRow)]
 pub struct RoleItem {
     pub item_type: ClubItemType,
-    pub tr_key: String,
+    pub item_tr_key: String,
 }
 
 #[derive(Clone, Debug)]
@@ -97,13 +97,13 @@ pub struct Club {
     pub role: ClubRole,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, FromRow)]
 pub struct NormalBalance {
     pub points: i32,
     pub yn: i64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, FromRow)]
 pub struct RpgBalance {
     pub bios: i64,
     pub exp: i32,
