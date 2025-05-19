@@ -1,13 +1,13 @@
+pub mod club;
+pub mod guild;
 pub mod member;
 pub mod system;
 pub use system::System;
 
-use crate::models::{
-    AgentRelation, ArmorType, AuthorityId, ClubItemType, ItemType, JobModel, Quality, Role,
-    RpgRole, Tool,
-};
+use crate::models::{AgentRelation, AuthorityId, ClubItemType, ItemType, JobModel, Quality, Role};
 use sqlx::{FromRow, PgPool};
 use std::collections::HashMap;
+use types::cards::poker::Card;
 
 #[derive(Clone, Debug)]
 pub struct Item {
@@ -17,13 +17,11 @@ pub struct Item {
     pub usable: bool,
     pub item_type: ItemType,
     pub quality: Quality,
-    pub armor_type: Option<ArmorType>,
-    pub tool_type: Option<Tool>,
     pub two_handed: bool,
 }
 
 #[derive(Clone, Debug)]
-pub struct InventoryItem {
+pub struct ItemAmount {
     pub info: Item,
     pub amount: i32,
 }
@@ -40,39 +38,11 @@ pub struct Product {
 pub struct MemberState {
     pub can_claim_daily: bool,
     pub in_gamble: bool,
-    pub in_rpg: bool,
-}
-
-#[derive(Clone, Debug)]
-pub struct Inventories {
-    pub normal: NormalInventory,
-    pub rpg: Option<RpgInventory>,
-}
-
-#[derive(Clone, Debug)]
-pub struct NormalInventory {
-    pub items: HashMap<i32, InventoryItem>,
-}
-
-#[derive(Clone, Debug)]
-pub struct RpgInventory {
-    pub items: HashMap<i32, InventoryItem>,
-}
-
-#[derive(Clone, Debug)]
-pub struct Roles {
-    pub normal: NormalRoles,
-    pub rpg: Option<RpgRoles>,
 }
 
 #[derive(Clone, Debug, FromRow)]
 pub struct NormalRoles {
     pub roles: Vec<Role>,
-}
-
-#[derive(Clone, Debug, FromRow)]
-pub struct RpgRoles {
-    pub roles: Vec<RpgRole>,
 }
 
 #[derive(Clone, Debug, FromRow)]
@@ -100,35 +70,23 @@ pub struct Club {
 #[derive(Clone, Debug, FromRow)]
 pub struct NormalBalance {
     pub points: i32,
-    pub yn: i64,
-}
-
-#[derive(Clone, Debug, FromRow)]
-pub struct RpgBalance {
     pub bios: i64,
-    pub exp: i32,
-    pub level: i32,
-}
-
-#[derive(Clone, Debug)]
-pub struct Balance {
-    pub normal: NormalBalance,
-    pub rpg: Option<RpgBalance>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Member {
     pub id: i64,
-    pub balance: Balance,
-    pub inventories: Inventories,
+    pub balance: NormalBalance,
+    pub inventory: HashMap<i32, ItemAmount>,
     pub job: Option<JobModel>,
-    pub roles: Roles,
+    pub roles: Vec<Role>,
     pub state: MemberState,
-    pub club: Option<Club>,
+    pub deck: Vec<Card>,
+    pub club_id: Option<i64>,
 }
 
-impl From<InventoryItem> for Item {
-    fn from(value: InventoryItem) -> Self {
+impl From<ItemAmount> for Item {
+    fn from(value: ItemAmount) -> Self {
         value.info
     }
 }

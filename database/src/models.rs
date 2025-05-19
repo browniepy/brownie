@@ -10,7 +10,7 @@ pub enum Role {
     Player,
 }
 
-#[derive(Debug, Clone, Type, PartialEq)]
+#[derive(Debug, Clone, Type, PartialEq, poise::ChoiceParameter)]
 #[sqlx(type_name = "club_item_type")]
 pub enum ClubItemType {
     Membership,
@@ -52,6 +52,28 @@ pub enum ArmorType {
     Boots,
     Neck,
     Ring,
+}
+
+#[derive(Debug, Clone, Type, PartialEq, poise::ChoiceParameter)]
+#[sqlx(type_name = "club_type")]
+pub enum ClubType {
+    Club,
+    Academy,
+    Organization,
+    Mafia,
+    Fundation,
+    Group,
+}
+
+#[derive(Debug, Clone, Type, PartialEq)]
+#[sqlx(type_name = "perm")]
+pub enum ClubRolePerm {
+    ManageRoles,
+    ManageMembers,
+    ManageBank,
+    ManageClub,
+    InviteMembers,
+    All,
 }
 
 #[derive(Debug, Clone, Type, PartialEq)]

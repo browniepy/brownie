@@ -12,8 +12,8 @@ use poise::{
 };
 use types::contradiction::{Battle, Contradiction, Player, Role};
 
-use super::CommonRes;
-use crate::{Context, Error, Parse};
+use super::{choice::Game, CommonRes};
+use crate::{Context, Error, Parser};
 
 enum Event {
     Inter(ComponentInteraction),
@@ -37,7 +37,7 @@ pub async fn contradict(ctx: Context<'_>, user: User, bios: Option<String>) -> R
         return Err("cannot play with yourself".into());
     }
 
-    let bet = Parse::amount(ctx, ctx.author().id, bios).await?;
+    let bet = Parser::amount(ctx, ctx.author().id, bios, 1000).await?;
 
     let mut contradict = Contradiction::new(vec![Player::new(ctx.author())]);
 
@@ -158,7 +158,7 @@ pub async fn contradict(ctx: Context<'_>, user: User, bios: Option<String>) -> R
                     0.to_string()
                 });
 
-                let bios_bet = Parse::abbreviation_to_number(&bios_bet);
+                let bios_bet = Parser::abbreviation_to_number(&bios_bet);
 
                 if let Ok(bet) = bios_bet {
                     if bet as isize <= player.bios {
@@ -168,7 +168,7 @@ pub async fn contradict(ctx: Context<'_>, user: User, bios: Option<String>) -> R
                             player.bet(bet as usize);
                             contradict.already_bet.push(inter.user.id);
 
-                            CommonRes::modal_your_bet_res(ctx, &inter, bet).await?;
+                            CommonRes::modal_your_bet_res(ctx, &inter, bet as i32).await?;
                         }
                     } else {
                         CommonRes::incorrect_bet(ctx, &inter).await?;
@@ -209,7 +209,8 @@ pub async fn contradict(ctx: Context<'_>, user: User, bios: Option<String>) -> R
                             let winner = contradict.get_winner().unwrap();
                             let loser = contradict.get_loser().unwrap();
 
-                            crate::charge_bet(ctx, winner.id, loser.id, bet).await?;
+                            crate::charge_bet(ctx, winner.id, loser.id, bet, Game::Contradict)
+                                .await?;
 
                             Response::final_result(ctx, &inter, &winner.name, &loser.name).await?;
 
@@ -237,7 +238,7 @@ pub async fn contradict(ctx: Context<'_>, user: User, bios: Option<String>) -> R
         let winner = contradict.get_player(id).unwrap();
         let loser = contradict.players.iter().find(|p| p.id != id).unwrap();
 
-        crate::charge_bet(ctx, winner.id, loser.id, bet).await?;
+        crate::charge_bet(ctx, winner.id, loser.id, bet, Game::Contradict).await?;
 
         if let Some(inter) = last_inter {
             CommonRes::vs_timeout(ctx, &inter, message.id, &winner.name, &loser.name).await?;

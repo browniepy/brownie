@@ -5,6 +5,10 @@ nim = nim
     .bios = bios
     .bios-description = Cantidad de bios para apostar
 
+Low = Low
+Medium = Medium
+High = High
+
 nim-request =
     Juego de nim tipo cero para { $user }
     Apostando { $amount } bios

@@ -1,8 +1,9 @@
 use database::{
-    structs::{Member, System},
+    structs::{club::Club, guild::Guild, Member, System},
     Cache, PgPool,
 };
-use poise::serenity_prelude::UserId;
+pub use poise::serenity_prelude as serenity;
+use serenity::{GuildId, UserId};
 pub use std::{sync::Arc, time::Duration};
 pub use tokio::sync::{Mutex, RwLock};
 
@@ -16,13 +17,18 @@ pub mod helpers;
 pub use helpers::*;
 
 mod parser;
-pub use parser::*;
+pub use parser::Parser;
+
+mod paginator;
+pub use paginator::{paginate, PageField};
 
 pub struct Data {
     pub pool: PgPool,
     pub members: Cache<UserId, Arc<RwLock<Member>>>,
+    pub guilds: Cache<GuildId, Arc<RwLock<Guild>>>,
     pub translations: Translations,
     pub system: Cache<(), Arc<Mutex<System>>>,
+    pub clubs: Cache<i64, Arc<RwLock<Club>>>,
 }
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;

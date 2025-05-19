@@ -1,10 +1,11 @@
-balance = balance
-    .description = Mira el balance de bios de alguien
-    .user = user
-    .user-description = Usuario para ver balance
-
 balance-self =
-    Tienes { $amount } bios
+    tienes { $bios } bios
 
 balance-other =
-    { $user } tiene { $amount } bios
+    { $user } tiene { $bios } bios
+
+not-enough-bios =
+    no tienes suficientes bios
+
+bios-give =
+    le diste { $bios } bios a { $user }

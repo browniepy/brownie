@@ -1,149 +1,58 @@
-mod responses;
+mod response;
 
-use crate::{get_member, Context, Error, Parse};
-use poise::serenity_prelude::{ComponentInteraction, ComponentInteractionCollector};
-use tokio::{
-    sync::mpsc,
-    time::{sleep, Duration},
-};
-use types::blackjack::*;
-
-enum Reason {
-    Timeout,
-    Completed,
-}
-
-enum Signal {
-    Finish {
-        inter: ComponentInteraction,
-        reason: Reason,
-    },
-    Tick,
-}
-
-enum Event {
-    Interaction(ComponentInteraction),
-    Receiver(Signal),
-}
+use crate::{Context, Duration, Error, Parser};
+use poise::serenity_prelude::ComponentInteractionCollector;
+use types::blackjack::Blackjack;
 
 #[poise::command(
     prefix_command,
     slash_command,
     install_context = "Guild|User",
-    interaction_context = "Guild|BotDm|PrivateChannel",
-    category = "gambling"
+    interaction_context = "Guild|BotDm|PrivateChannel"
 )]
 pub async fn blackjack(ctx: Context<'_>, amount: Option<String>) -> Result<(), Error> {
-    let bet = Parse::amount(ctx, ctx.author().id, amount).await?;
-    let mut last_inter = None;
-    let mut bj = Blackjack::new(ctx.author().clone(), bet);
+    let bet = Parser::amount(ctx, ctx.author().id, amount, 500).await?;
 
-    let member = get_member(ctx, ctx.author().id).await?;
-    let mut write = member.write().await;
+    let mut blackjack = Blackjack::new(ctx.author().clone(), bet);
 
-    bj.set_timeout();
-    bj.deal_cards(&mut write.deck);
+    {
+        let member = crate::get_member(ctx, ctx.author().id).await?;
+        let mut write = member.write().await;
 
-    let (tx, mut rx) = mpsc::channel::<Signal>(5);
-    let tx_clone = tx.clone();
+        blackjack.deal_cards(&mut write.deck);
+    }
 
-    let msg = responses::first(ctx, &mut bj, &write.deck).await?;
+    while let Some(inter) = ComponentInteractionCollector::new(ctx)
+        .timeout(Duration::from_secs(60))
+        .await
+    {
+        if inter.user.id != ctx.author().id {
+            continue;
+        }
 
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(1));
+        if inter.data.custom_id == format!("hit_{}", ctx.id()) {
+            let member = crate::get_member(ctx, ctx.author().id).await?;
+            let mut write = member.write().await;
 
-        loop {
-            interval.tick().await;
+            blackjack.player_hit(&mut write.deck);
+        }
 
-            if tx_clone.send(Signal::Tick).await.is_err() {
-                break;
+        if inter.data.custom_id == format!("stand_{}", ctx.id()) {
+            let member = crate::get_member(ctx, ctx.author().id).await?;
+            let mut write = member.write().await;
+
+            while blackjack.dealer.hand_value(false) < 17 {
+                blackjack.dealer_hit(&mut write.deck);
             }
         }
-    });
 
-    loop {
-        let collector = ComponentInteractionCollector::new(ctx);
+        if inter.data.custom_id == format!("double_{}", ctx.id()) {
+            let member = crate::get_member(ctx, ctx.author().id).await?;
+            let mut write = member.write().await;
 
-        let event = tokio::select! {
-            Some(inter) = collector.next() => Event::Interaction(inter),
-            Some(signal) = rx.recv() => Event::Receiver(signal),
-        };
-
-        match event {
-            Event::Receiver(signal) => match signal {
-                Signal::Tick => {
-                    println!("Tick");
-
-                    if bj.timeout.is_some() {
-                        bj.decrement_timeout();
-
-                        if bj.is_timeout() {
-                            tx.send(Signal::Finish {
-                                inter: last_inter.clone().unwrap(),
-                                reason: Reason::Timeout,
-                            })
-                            .await?;
-                        }
-                    }
-                }
-
-                Signal::Finish { inter, reason } => {
-                    match reason {
-                        Reason::Timeout => {}
-                        Reason::Completed => {
-                            responses::round_result(ctx, &mut bj, &inter, msg.id, &write.deck)
-                                .await?;
-                        }
-                    }
-                    return Ok(());
-                }
-            },
-            Event::Interaction(inter) => {
-                last_inter = Some(inter.clone());
-
-                if inter.user.id == bj.player.id {
-                    bj.set_timeout();
-
-                    if inter.data.custom_id == format!("{}_hit", ctx.id()) {
-                        bj.player_hit(&mut write.deck);
-                        responses::update(ctx, &mut bj, &inter, &write.deck).await?;
-
-                        if bj.player.is_bust() {
-                            sleep(Duration::from_secs(1)).await;
-                        }
-
-                        let result = bj.round_result();
-                        tx.send(Signal::Finish {
-                            inter: inter.clone(),
-                            reason: Reason::Completed,
-                        })
-                        .await?;
-                    }
-
-                    if inter.data.custom_id == format!("{}_stand", ctx.id()) {
-                        bj.player.state = State::Stand;
-
-                        responses::update(ctx, &mut bj, &inter, &write.deck).await?;
-                        sleep(Duration::from_secs(1)).await;
-
-                        while bj.dealer.hand_value(false) < 17 {
-                            bj.dealer_hit(&mut write.deck);
-
-                            responses::update_followup(ctx, &mut bj, &inter, msg.id, &write.deck)
-                                .await?;
-                            sleep(Duration::from_secs(1)).await;
-                        }
-
-                        let result = bj.round_result();
-                        tx.send(Signal::Finish {
-                            inter: inter.clone(),
-                            reason: Reason::Completed,
-                        })
-                        .await?;
-                    }
-                } else {
-                }
-            }
+            blackjack.player_hit(&mut write.deck);
         }
     }
+
+    Ok(())
 }

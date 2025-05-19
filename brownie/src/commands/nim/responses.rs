@@ -9,7 +9,7 @@ use poise::{
 use types::{cards::nim_zero::Card, nim_type_zero::Player};
 
 use super::{Context, Error};
-use crate::{translate, Parse};
+use crate::{commands::CommonButton, translate, Parser};
 
 pub struct ErrorRes;
 
@@ -101,9 +101,27 @@ impl ErrorRes {
 }
 
 impl Response {
-    pub async fn nim_request(ctx: Context<'_>, user: &User, amount: i32) -> Result<Message, Error> {
-        let bet = Parse::abbreviate_number(amount);
-        let content = translate!(ctx, "nim-request", user: user.mention().to_string(), amount: bet);
+    pub async fn nim_request_bot(ctx: Context<'_>, amount: i64) -> Result<Message, Error> {
+        let bet = Parser::abbreviate_number(amount);
+        let content = translate!(ctx, "gamble-request-machine", amount: bet);
+
+        let message = ctx
+            .send(
+                CreateReply::default()
+                    .content(content)
+                    .components(CommonButton::continue_button(ctx)),
+            )
+            .await?
+            .into_message()
+            .await?;
+
+        Ok(message)
+    }
+
+    pub async fn nim_request(ctx: Context<'_>, user: &User, amount: i64) -> Result<Message, Error> {
+        let bet = Parser::abbreviate_number(amount);
+        let content =
+            translate!(ctx, "gamble-request", user: user.mention().to_string(), amount: bet);
 
         let message = ctx
             .send(
@@ -124,7 +142,7 @@ impl Response {
         inter: &ComponentInteraction,
         user: &User,
     ) -> Result<(), Error> {
-        let content = translate!(ctx, "game-declined", user: user.mention().to_string());
+        let content = translate!(ctx, "gamble-cancel", user: user.mention().to_string());
 
         inter
             .create_response(
@@ -146,7 +164,7 @@ impl Response {
         inter: &ComponentInteraction,
         player: &Player,
     ) -> Result<MessageId, Error> {
-        let content = translate!(ctx, "nim-choose-card");
+        let content = translate!(ctx, "nim-ur-cards");
 
         let message = inter
             .create_followup(
@@ -183,26 +201,6 @@ impl Response {
         Ok(())
     }
 
-    pub async fn new_game(
-        ctx: Context<'_>,
-        inter: &ComponentInteraction,
-        player: &str,
-    ) -> Result<Message, Error> {
-        let content = translate!(ctx, "nim-new-game", user: player);
-
-        let message = inter
-            .create_followup(
-                ctx,
-                CreateInteractionResponseFollowup::new()
-                    .content(content)
-                    .components(Button::choose(ctx, false))
-                    .allowed_mentions(crate::mentions()),
-            )
-            .await?;
-
-        Ok(message)
-    }
-
     pub async fn new_round(
         ctx: Context<'_>,
         inter: &ComponentInteraction,
@@ -210,9 +208,14 @@ impl Response {
         disabled: bool,
         last_card: &Card,
         player: &str,
+        total: i32,
+        next_player: &str,
     ) -> Result<(), Error> {
         let card = translate!(ctx, &last_card.name());
-        let content = translate!(ctx, "nim-round-info", userA: player, card: card);
+        let mut content = translate!(ctx, "nim-round-info", user: player, card: card, total: total);
+
+        let subcontent = translate!(ctx, "nim-turn", user: next_player);
+        content.push_str(&format!("\n\n{}", subcontent));
 
         inter
             .edit_followup(
@@ -228,36 +231,30 @@ impl Response {
         Ok(())
     }
 
-    pub async fn round_lose(
+    pub async fn nim_end(
         ctx: Context<'_>,
         inter: &ComponentInteraction,
-        message_id: MessageId,
         loser: &str,
         winner: &str,
+        card: &Card,
+        message_id: MessageId,
+        total: i32,
     ) -> Result<(), Error> {
-        let content = translate!(ctx, "nim-round-lose", loser: loser, winner: winner);
+        let card = translate!(ctx, &card.name());
+        let content = translate!(ctx, "nim-game-lose", loser: loser, winner: winner, card: &card);
 
         inter
             .edit_followup(
                 ctx,
                 message_id,
                 CreateInteractionResponseFollowup::new()
-                    .content(content)
-                    .components(Button::choose(ctx, true))
+                    .content(
+                        translate!(ctx, "nim-round-info", user: loser, card: card, total: total),
+                    )
+                    .components(vec![])
                     .allowed_mentions(crate::mentions()),
             )
             .await?;
-
-        Ok(())
-    }
-
-    pub async fn nim_end(
-        ctx: Context<'_>,
-        inter: &ComponentInteraction,
-        loser: &str,
-        winner: &str,
-    ) -> Result<(), Error> {
-        let content = translate!(ctx, "nim-end", loser: loser, winner: winner);
 
         inter
             .create_followup(

@@ -1,0 +1,3 @@
+CREATE TABLE guild (
+  id BIGINT PRIMARY KEY
+);

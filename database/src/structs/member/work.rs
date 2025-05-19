@@ -1,5 +1,8 @@
 use super::{Error, Member};
-use crate::models::{JobModel, Role};
+use crate::{
+    error::WorkError,
+    models::{JobModel, Role},
+};
 use rand::Rng;
 use sqlx::PgPool;
 
@@ -21,13 +24,13 @@ impl Member {
             None => rand::thread_rng().gen_range(500..900),
         };
 
-        self.increase_yn(pool, range).await?;
+        self.increase_bios(pool, range).await?;
         Ok(range)
     }
 
-    pub async fn leave_job(&mut self, pool: &PgPool) -> Result<(), Error> {
+    pub async fn leave_job(&mut self, pool: &PgPool) -> Result<(), WorkError> {
         if !self.is_employed() {
-            return Err("not employed".into());
+            return Err(WorkError::NotEmployed);
         }
 
         sqlx::query!("UPDATE member SET job = NULL WHERE id = $1", self.id)
@@ -39,9 +42,9 @@ impl Member {
         Ok(())
     }
 
-    pub async fn apply_job(&mut self, pool: &PgPool, id: i32) -> Result<(), Error> {
+    pub async fn apply_job(&mut self, pool: &PgPool, id: i32) -> Result<(), WorkError> {
         if self.is_employed() {
-            return Err("already employed".into());
+            return Err(WorkError::AlreadyEmployed);
         }
 
         let record = sqlx::query!("SELECT can_apply_job($1, $2);", self.id, id)
@@ -49,7 +52,7 @@ impl Member {
             .await?;
 
         if !record.can_apply_job.unwrap() {
-            return Err("cant apply to job".into());
+            return Err(WorkError::CannotApply);
         }
 
         sqlx::query!("UPDATE member SET job = $1 WHERE id = $2;", id, self.id)

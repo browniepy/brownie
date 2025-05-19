@@ -1,0 +1,7 @@
+CREATE TABLE club_apply (
+  club BIGINT REFERENCES club(id) ON DELETE CASCADE,
+  member BIGINT REFERENCES member(id) ON DELETE CASCADE,
+  send_at TIMESTAMP NOT NULL DEFAULT TIMEZONE('UTC', NOW()),
+  completed BOOL NOT NULL,
+  PRIMARY KEY (club, member)
+);

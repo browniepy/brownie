@@ -1,154 +1,244 @@
-mod responses;
+use super::{
+    check::{self_can_gamble, user_can_gamble},
+    choice::Game,
+};
+use crate::{
+    serenity::{ComponentInteraction, ComponentInteractionCollector, Message, User, UserId},
+    Context, Duration, Error, Parser,
+};
 use responses::{ErrorRes, Response};
-
-use std::time::Duration;
-
-use crate::{Context, Error, Parse};
-use poise::serenity_prelude::{ComponentInteraction, ComponentInteractionCollector, Message, User};
 use types::nim_type_zero::{Nim, Player};
+
+mod responses;
 
 #[poise::command(
     prefix_command,
     slash_command,
     install_context = "Guild|User",
     interaction_context = "Guild|BotDm|PrivateChannel",
+    check = "self_can_gamble",
     category = "gambling"
 )]
-pub async fn nim(ctx: Context<'_>, user: User, bios: Option<String>) -> Result<(), Error> {
-    if user.id == ctx.author().id {
-        return Err("cannot play with yourself".into());
+pub async fn nim(ctx: Context<'_>, user: Option<User>, bios: Option<String>) -> Result<(), Error> {
+    if let Some(user) = &user {
+        if user.id == ctx.author().id {
+            return Err("cannot play with yourself".into());
+        }
+
+        user_can_gamble(ctx, user.clone()).await?;
     }
 
-    let bet = Parse::amount(ctx, ctx.author().id, bios).await?;
+    let bet = Parser::amount(ctx, ctx.author().id, bios, 500).await?;
 
-    let mut nim = Nim::new(Player::new(ctx.author()), bet);
-    let mut message = Response::nim_request(ctx, &user, bet).await?;
+    let mut nim = Nim::new(Player::new(Some(ctx.author()), false), bet);
 
-    let mut last_inter_player = None;
-    let mut last_inter = None;
+    let mut message = match user {
+        Some(ref user) => Response::nim_request(ctx, user, bet).await?,
+        None => Response::nim_request_bot(ctx, bet).await?,
+    };
+
+    crate::set_gamble(ctx, ctx.author().id).await?;
+
+    let mut last_interaction = None;
+
+    let user_id = if let Some(ref user) = user {
+        user.id
+    } else {
+        UserId::default()
+    };
 
     let author_id = ctx.author().id;
-    while let Some(inter) = ComponentInteractionCollector::new(ctx)
-        .filter(move |mci| mci.user.id == user.id || mci.user.id == author_id)
-        .timeout(Duration::from_secs(40))
+
+    while let Some(interaction) = ComponentInteractionCollector::new(ctx)
+        .timeout(Duration::from_secs(20))
         .await
     {
-        last_inter = Some(inter.clone());
+        if interaction.user.id != user_id && interaction.user.id != author_id {
+            continue;
+        }
 
-        if inter.data.custom_id == format!("{}_accept", ctx.id()) {
-            if inter.user.id == user.id {
-                if !crate::can_partial_bet(ctx, user.id, bet).await? {
-                    ErrorRes::cannot_accept(ctx, &inter).await?;
+        last_interaction = Some(interaction.clone());
+
+        if interaction.data.custom_id == format!("{}_continue", ctx.id()) {
+            nim.add_player(Player::new(
+                Some(&ctx.http().get_user(UserId::new(896535593641734164)).await?),
+                true,
+            ))?;
+            nim.deal_cards();
+            Response::nim_start(ctx, &interaction, nim.current_player()).await?;
+        }
+
+        if interaction.data.custom_id == format!("{}_accept", ctx.id()) {
+            if interaction.user.id == user.clone().unwrap().id {
+                if super::check::user_can_gamble(ctx, interaction.user.clone())
+                    .await
+                    .is_err()
+                {
+                    ErrorRes::cannot_accept(ctx, &interaction).await?;
                     return Ok(());
                 }
-                last_inter_player = Some(inter.user.id);
 
-                nim.add_player(Player::new(&inter.user))?;
+                if !crate::can_partial_bet(ctx, user.clone().unwrap().id, bet).await? {
+                    ErrorRes::cannot_accept(ctx, &interaction).await?;
+                    return Ok(());
+                }
+
+                crate::set_gamble(ctx, user.clone().unwrap().id).await?;
+
+                nim.add_player(Player::new(Some(&interaction.user), false))?;
                 nim.deal_cards();
-                Response::nim_start(ctx, &inter, nim.current_player()).await?;
+                Response::nim_start(ctx, &interaction, nim.current_player()).await?;
             } else {
-                ErrorRes::self_accept(ctx, &inter).await?;
+                ErrorRes::self_accept(ctx, &interaction).await?;
             }
         }
 
-        if inter.data.custom_id == format!("{}_decline", ctx.id()) {
-            Response::nim_declined(ctx, &inter, &inter.user).await?;
+        if interaction.data.custom_id == format!("{}_decline", ctx.id()) {
+            crate::free_gamble(ctx, vec![ctx.author().id]).await?;
+            Response::nim_declined(ctx, &interaction, &interaction.user).await?;
             return Ok(());
         }
 
-        if inter.data.custom_id == format!("{}_choose", ctx.id()) {
-            if inter.user.id == nim.current_player().id {
-                inter.defer_ephemeral(ctx).await?;
-                let message_id = Response::choose_card(ctx, &inter, nim.current_player()).await?;
+        if interaction.data.custom_id == format!("{}_choose", ctx.id()) {
+            if interaction.user.id == nim.current_player().id {
+                interaction.defer_ephemeral(ctx).await?;
+                let message_id =
+                    Response::choose_card(ctx, &interaction, nim.current_player()).await?;
                 nim.ephemeral = Some(message_id);
             } else {
-                ErrorRes::isnt_your_turn(ctx, &inter).await?;
+                ErrorRes::isnt_your_turn(ctx, &interaction).await?;
             }
         }
 
-        if let Some(index) = &inter
+        if let Some(index) = &interaction
             .data
             .custom_id
             .strip_prefix(&format!("{}_card_", ctx.id()))
         {
             if let Ok(index) = index.parse::<usize>() {
-                inter.defer(ctx).await?;
-                last_inter_player = Some(inter.user.id);
+                interaction.defer(ctx).await?;
 
                 if let Some(id) = nim.ephemeral {
-                    inter.delete_followup(ctx, id).await?;
+                    interaction.delete_followup(ctx, id).await?;
                     nim.ephemeral = None;
                 }
 
-                nim.play_card(index);
+                nim.play_card(index).await?;
 
-                let res = process_after_card_played(ctx, &inter, &mut message, &mut nim).await?;
-                if res.has_to_finish() {
-                    let winner = nim.get_winner().unwrap();
-                    let loser = nim.get_loser().unwrap();
+                let result =
+                    played_card_process(ctx, &interaction, &mut message, &mut nim, bet).await?;
 
-                    crate::charge_bet(ctx, winner.id, loser.id, bet).await?;
-
-                    Response::nim_end(ctx, &inter, &loser.name, &winner.name).await?;
+                if result.has_to_finish() {
                     return Ok(());
                 }
             }
         }
     }
 
-    if let Some(id) = last_inter_player {
-        let winner = nim.get_player(id);
-        let loser = nim.players.iter().find(|p| p.id != id).unwrap();
+    crate::free_gamble(
+        ctx,
+        nim.players
+            .iter()
+            .map(|player| player.id)
+            .collect::<Vec<UserId>>(),
+    )
+    .await?;
 
-        crate::charge_bet(ctx, winner.id, loser.id, bet).await?;
+    if let Some(interaction) = last_interaction {
+        let user_id = interaction.user.id;
 
-        if let Some(inter) = last_inter {
-            ErrorRes::nim_timeout(ctx, &inter, message.id, &winner.name, &loser.name).await?;
+        let winner = nim.get_player(user_id);
+        let loser = nim.players.iter().find(|p| p.id != user_id).unwrap();
+
+        if !nim.players.iter().any(|player| player.is_bot()) {
+            crate::charge_bet(ctx, winner.id, loser.id, bet, Game::NimTypeZero).await?;
         }
+
+        if !winner.is_bot() {
+            crate::charge_single_bet(ctx, winner.id, bet, true).await?;
+        }
+
+        if !loser.is_bot() {
+            crate::charge_single_bet(ctx, loser.id, bet, false).await?;
+        }
+
+        ErrorRes::nim_timeout(ctx, &interaction, message.id, &winner.name, &loser.name).await?;
     }
 
     Ok(())
 }
 
-async fn process_after_card_played(
+async fn played_card_process(
     ctx: Context<'_>,
-    inter: &ComponentInteraction,
+    interaction: &ComponentInteraction,
     message: &mut Message,
     nim: &mut Nim,
+    bet: i64,
 ) -> Result<CardPlayedRes, Error> {
     if nim.table_value() > 9 {
-        nim.mut_rival_player().wins += 1;
-
-        nim.table_cards.clear();
-        nim.deal_cards();
-
         let loser = nim.current_player();
         let winner = nim.rival_player();
 
-        Response::round_lose(ctx, inter, message.id, &loser.name, &winner.name).await?;
-        tokio::time::sleep(Duration::from_secs(3)).await;
-
-        if nim.has_winner() {
-            return Ok(CardPlayedRes::FinishGame);
+        if !nim.players.iter().any(|player| player.is_bot()) {
+            crate::charge_bet(ctx, winner.id, loser.id, bet, Game::NimTypeZero).await?;
         }
 
-        nim.next_player();
-        let actual = nim.current_player();
-        *message = Response::new_game(ctx, inter, &actual.name).await?;
+        if !winner.is_bot() {
+            crate::charge_single_bet(ctx, winner.id, bet, true).await?;
+        }
+
+        if !loser.is_bot() {
+            crate::charge_single_bet(ctx, loser.id, bet, false).await?;
+        }
+
+        crate::free_gamble(
+            ctx,
+            nim.players
+                .iter()
+                .map(|player| player.id)
+                .collect::<Vec<UserId>>(),
+        )
+        .await?;
+
+        Response::nim_end(
+            ctx,
+            interaction,
+            &loser.name,
+            &winner.name,
+            nim.last_played_card(),
+            message.id,
+            nim.table_value(),
+        )
+        .await?;
+        return Ok(CardPlayedRes::FinishGame);
     } else {
         nim.next_player();
         nim.check_hand();
 
         let actual = nim.current_player();
+        let other = nim.rival_player();
+
         Response::new_round(
             ctx,
-            inter,
+            interaction,
             message.id,
-            false,
+            nim.current_player().is_bot(),
             nim.last_played_card(),
+            &other.name,
+            nim.table_value(),
             &actual.name,
         )
         .await?;
+
+        if actual.is_bot() {
+            nim.bot_play().await?;
+
+            Box::pin(played_card_process(ctx, interaction, message, nim, bet)).await?;
+
+            if nim.table_value() > 9 {
+                return Ok(CardPlayedRes::FinishGame);
+            }
+        }
     }
 
     Ok(CardPlayedRes::ContinuePlaying)

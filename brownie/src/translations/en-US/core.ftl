@@ -39,3 +39,11 @@ decline = Declinar
 choose-object = Elegir objeto
 bet = Apostar
 choose-card = Elegir carta
+throw-dices = Tirar dados
+double-down = Doble o nada
+
+won =
+    Has ganado { $amount } bios
+
+lost =
+    Has perdido { $amount } bios

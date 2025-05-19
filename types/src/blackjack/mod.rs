@@ -19,7 +19,7 @@ pub struct Blackjack {
 }
 
 impl Blackjack {
-    pub fn new(user: User, bet: i32) -> Self {
+    pub fn new(user: User, bet: i64) -> Self {
         let player = Player::new(user, bet);
 
         Self {

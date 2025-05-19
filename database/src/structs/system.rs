@@ -1,12 +1,14 @@
+use std::time::Duration;
+
+use moka::future::Cache;
 use sqlx::PgPool;
 
 use crate::{
-    models::{BoardMember, ItemType, JobModel, Quality, Role},
+    models::{AuthorityId, BoardMember, ItemType, JobModel, Quality, Role},
     structs::{Item, Product},
     Error,
 };
 
-#[derive(Clone, Debug)]
 pub struct System {
     pub top_money: Vec<BoardMember>,
     pub top_level: Vec<BoardMember>,
@@ -59,8 +61,6 @@ impl System {
                     usable: item.usable,
                     item_type: item.item_type.clone(),
                     quality: item.quality.clone(),
-                    tool_type: None,
-                    armor_type: None,
                     two_handed: false,
                 },
                 price: item.price.unwrap_or_default(),
@@ -111,8 +111,6 @@ impl System {
             usable: item.usable,
             quality: item.quality,
             item_type: item.item_type,
-            tool_type: None,
-            armor_type: None,
             two_handed: false,
         };
 

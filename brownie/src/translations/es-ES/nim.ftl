@@ -1,33 +1,41 @@
 nim = nim
-    .description = Juego de nim tipo cero
+    .description = nim tipo cero
     .user = usuario
-    .user-description = Usuario rival de la apuesta
+    .user-description = usuario rival, puedes jugar contra la ia
     .bios = bios
-    .bios-description = Cantidad de bios para apostar
+    .bios-description = apuesta de bios
 
-nim-request =
-    Apuesta de nim tipo cero para { $user }
-    En juego { $amount } bios
-
-nim-choose-card =
-    Elige una de tus cartas disponibles
+nim-ur-cards =
+    estas son tus cartas, ¡elige bien!
 
 nim-start =
-    No hay carta anterior tirada
     { $user } inicia eligiendo una carta
 
-nim-new-game =
-    No hay carta anterior tirada
-    { $user } inicia eligiendo una carta
+table-sum = la mesa ahora suma
 
 nim-round-info =
-    Anterior carta tirada { $card }
-    { $userA } es tu turno de elegir
+    { $user } ha jugado la carta { $card }
+    { $total ->
+        [0] ¡la mesa sigue valiendo cero!
+        [1] { table-sum } { $total }
+        [2] { table-sum } { $total }
+        [3] { table-sum } { $total }
+        [4] { table-sum } { $total }
+        [5] { table-sum } { $total }
+        [6] { table-sum } { $total }
+        [7] { table-sum } { $total }
+        [8] { table-sum } { $total }
+        [9] ¡{ table-sum } { $total }!
+       *[other] el valor final de la mesa es { $total }
+    }
+
+nim-turn =
+    turno de elegir para { $user }
 
 nim-round-lose =
-    { $loser } perdió la ronda de nim
-    Punto para { $winner }
+    { $user } perdió esta ronda
+    la carta { $card } sobrepasó el límite
 
-nim-end =
-    { $loser } perdió la apuesta de nim
-    El ganador es { $winner }
+nim-game-lose =
+    { $loser } perdió contra { $winner }
+    la carta { $card } sobrepasó el límite

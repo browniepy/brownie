@@ -49,7 +49,7 @@ pub fn get(
     ctx.locale()
         .and_then(|locale| format(translations.other.get(locale)?, id, attr, args))
         .or_else(|| format(&translations.main, id, attr, args))
-        .unwrap_or_else(|| format!("missing translation {}", id))
+        .unwrap_or_else(|| id.to_string())
 }
 
 pub fn read_ftl() -> Result<Translations, Error> {

@@ -101,18 +101,16 @@ impl Player {
                     false
                 }
             }
+        } else if let Some(next_tank) = self.air_bios.iter_mut().find(|b| !b.is_active) {
+            next_tank.is_active = true;
+            true
         } else {
-            if let Some(next_tank) = self.air_bios.iter_mut().find(|b| !b.is_active) {
-                next_tank.is_active = true;
-                true
-            } else {
-                self.is_alive = false;
-                false
-            }
+            self.is_alive = false;
+            false
         }
     }
 
-    pub fn consume_air_bi(&mut self) -> bool {
+    pub fn consume_air_bios(&mut self) -> bool {
         if let Some(active_tank) = self.air_bios.iter_mut().find(|tank| tank.is_active) {
             let duration_val = active_tank.duration.load(Ordering::Relaxed);
             if duration_val > 0 {

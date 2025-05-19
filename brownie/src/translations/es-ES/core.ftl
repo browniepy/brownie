@@ -28,12 +28,22 @@ your-bet-res =
     Has apostado { $amount } bios
 
 
+win-bios =
+    Ganaste { $amount } bios
+
+lose-bios =
+    Perdiste { $amount } bios
+
+
 zero = Cero
 one = Uno
 two = Dos
 three = Tres
 
 
+prev = Anterior
+next = Siguiente
+continue = Continuar
 accept = Aceptar
 decline = Declinar
 choose-object = Elegir objeto
@@ -41,3 +51,17 @@ bet = Apostar
 bet-bios = Apostar bios
 choose = Elegir
 choose-card = Elegir carta
+
+won =
+    ¡has ganado { $amount } bios!
+
+lost =
+    has perdido { $amount } bios
+
+gamble-request =
+    solicitud de apuesta para { $user }
+    en juego { $amount } bios
+
+gamble-request-machine =
+    estás por apostar contra la máquina
+    en juego { $amount } bios

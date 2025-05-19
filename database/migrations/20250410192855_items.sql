@@ -4,7 +4,8 @@ CREATE TYPE item_type AS ENUM (
     'Material',
     'Quest',
     'Misc',
-    'Consumable'
+    'Consumable',
+    'Food'
 );
 
 CREATE TYPE tool_type AS ENUM (
@@ -17,7 +18,6 @@ CREATE TYPE tool_type AS ENUM (
 
 CREATE TYPE quality AS ENUM (
     'Common',
-    'Normal',
     'Epic',
     'Masterpiece'
 );
@@ -55,3 +55,11 @@ CREATE TABLE IF NOT EXISTS normal_shop (
     PRIMARY KEY (item)
 );
 
+INSERT INTO normal_item (name, usable, item_type, quality)
+VALUES
+  ('coffee', true, 'Food', 'Common'),
+  ('life-insurance', false, 'Misc', 'Masterpiece'),
+  ('kariume', true, 'Food' ,'Common'),
+  ('cake', true, 'Food', 'Common'),
+  ('l-archive', false, 'Material', 'Masterpiece'),
+  ('diamond', false, 'Material', 'Epic');

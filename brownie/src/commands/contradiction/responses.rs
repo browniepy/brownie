@@ -1,5 +1,5 @@
 use super::super::CommonButton;
-use crate::{translate, Context, Error, Parse};
+use crate::{translate, Context, Error, Parser};
 use poise::{
     serenity_prelude::{
         ButtonStyle, ComponentInteraction, CreateActionRow, CreateButton, CreateInputText,
@@ -24,7 +24,7 @@ impl ModalRes {
         player: &Player,
     ) -> Result<(), Error> {
         let your_bios = if player.bios > 0 {
-            translate!(ctx, "your-bios", amount: Parse::num_with_commas(player.bios as i32))
+            translate!(ctx, "your-bios", amount: Parser::num_with_commas(player.bios as i64))
         } else {
             translate!(ctx, "empty-bios")
         };
@@ -126,7 +126,7 @@ impl Response {
         let a = contradict.players.first().unwrap();
         let b = contradict.players.last().unwrap();
 
-        let sub_content = translate!(ctx, "contradict-bet-info", a: &a.name, aBios: Parse::num_with_commas(a.current_bet as i32), b: &b.name, bBios: Parse::num_with_commas(b.current_bet as i32));
+        let sub_content = translate!(ctx, "contradict-bet-info", a: &a.name, aBios: Parser::num_with_commas(a.current_bet as i64), b: &b.name, bBios: Parser::num_with_commas(b.current_bet as i64));
 
         inter
             .edit_followup(
@@ -205,8 +205,8 @@ impl Response {
         Ok(())
     }
 
-    pub async fn request(ctx: Context<'_>, user: &User, bios: i32) -> Result<Message, Error> {
-        let abbreviate = Parse::abbreviate_number(bios);
+    pub async fn request(ctx: Context<'_>, user: &User, bios: i64) -> Result<Message, Error> {
+        let abbreviate = Parser::abbreviate_number(bios);
         let content = translate!(ctx, "contradict-request", user: user.mention().to_string(), bios: abbreviate);
 
         let message = ctx

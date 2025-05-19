@@ -68,6 +68,15 @@ pub async fn shift(ctx: Context<'_>) -> Result<(), Error> {
     category = "economy"
 )]
 pub async fn apply(ctx: Context<'_>, id: i32) -> Result<(), Error> {
+    {
+        let system = crate::get_system(ctx).await;
+        let lock = system.lock().await;
+
+        if !lock.jobs.iter().any(|job| job.id == id) {
+            return Err(translate!(ctx, "work-not-found").into());
+        }
+    }
+
     let member = crate::get_member(ctx, ctx.author().id).await?;
     let mut write = member.write().await;
 
@@ -75,7 +84,6 @@ pub async fn apply(ctx: Context<'_>, id: i32) -> Result<(), Error> {
         let content = match error {
             WorkError::AlreadyEmployed => translate!(ctx, "work-apply-employed"),
             WorkError::CannotApply => translate!(ctx, "work-apply-cannot"),
-            WorkError::JobNotFound => translate!(ctx, "work-not-found"),
             _ => translate!(ctx, "unknown-error"),
         };
 
@@ -98,11 +106,6 @@ pub async fn apply(ctx: Context<'_>, id: i32) -> Result<(), Error> {
 pub async fn leave(ctx: Context<'_>) -> Result<(), Error> {
     let member = crate::get_member(ctx, ctx.author().id).await?;
     let mut write = member.write().await;
-
-    if write.job.is_none() {
-        let content = translate!(ctx, "work-leave-error");
-        return Err(content.into());
-    }
 
     if let Err(error) = write.leave_job(&ctx.data().pool).await {
         let content = match error {

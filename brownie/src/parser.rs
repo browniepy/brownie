@@ -2,9 +2,9 @@ use crate::{helpers::get_member, Context, Error};
 use poise::serenity_prelude::UserId;
 use types::dices::Selection;
 
-pub struct Parse;
+pub struct Parser;
 
-impl Parse {
+impl Parser {
     pub fn num_with_commas(number: i64) -> String {
         let num_str = number.to_string();
         let len = num_str.len();

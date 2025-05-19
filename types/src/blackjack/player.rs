@@ -14,7 +14,7 @@ pub enum State {
 pub struct Player {
     pub id: UserId,
     pub name: String,
-    pub bet: i32,
+    pub bet: i64,
     pub hand: Vec<Card>,
     pub state: State,
 }
@@ -69,7 +69,7 @@ impl Dealer {
 }
 
 impl Player {
-    pub fn new(user: User, bet: i32) -> Self {
+    pub fn new(user: User, bet: i64) -> Self {
         let name = user.display_name().to_title_case();
         let id = user.id;
 
