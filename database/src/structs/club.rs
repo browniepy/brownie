@@ -452,6 +452,34 @@ impl Club {
         Ok(())
     }
 
+    pub async fn role_set_limit(
+        &mut self,
+        pool: &PgPool,
+        role_tr_key: String,
+        limit: i32,
+    ) -> Result<(), ClubError> {
+        if let Some(role) = self
+            .roles
+            .iter_mut()
+            .find(|role| role.tr_key == role_tr_key)
+        {
+            sqlx::query!(
+                "UPDATE club_limits SET member_limit = $1 WHERE role_name = $2 AND club = $3;",
+                limit,
+                role_tr_key,
+                self.id
+            )
+            .execute(pool)
+            .await?;
+
+            role.member_limit = limit;
+        } else {
+            return Err(ClubError::RoleNotFound);
+        }
+
+        Ok(())
+    }
+
     pub async fn role_set_authority(
         &mut self,
         pool: &PgPool,
