@@ -2,13 +2,16 @@ use crate::{translate, Context, Error, Helper};
 use database::{models::ClubType, structs::club::Club};
 use poise::serenity_prelude::UserId;
 
+mod roles;
+use roles::role;
+
 #[poise::command(
     prefix_command,
     slash_command,
     install_context = "Guild|User",
     interaction_context = "Guild|BotDm|PrivateChannel",
     subcommand_required,
-    subcommands("create", "rename", "description", "kind", "transfer"),
+    subcommands("create", "rename", "description", "kind", "transfer", "role"),
     category = "club"
 )]
 pub async fn club(_ctx: Context<'_>) -> Result<(), Error> {
