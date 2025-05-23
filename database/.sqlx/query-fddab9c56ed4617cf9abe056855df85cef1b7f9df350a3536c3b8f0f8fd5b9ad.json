@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT can_claim_daily_reward($1);",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "can_claim_daily_reward",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "fddab9c56ed4617cf9abe056855df85cef1b7f9df350a3536c3b8f0f8fd5b9ad"
+}

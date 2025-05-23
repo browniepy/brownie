@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, balance, points  FROM member ORDER BY balance DESC LIMIT 10",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "balance",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "points",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "718271cfb4b409c46ab3ec3bcf7a805f258dac6be23c3a46ee34f3c137e83f9c"
+}

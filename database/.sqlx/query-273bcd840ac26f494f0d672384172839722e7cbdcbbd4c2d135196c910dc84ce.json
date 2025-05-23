@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE club SET club_type = $1 WHERE id = $2;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        {
+          "Custom": {
+            "name": "club_type",
+            "kind": {
+              "Enum": [
+                "Club",
+                "Academy",
+                "Organization",
+                "Mafia",
+                "Fundation",
+                "Group"
+              ]
+            }
+          }
+        },
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "273bcd840ac26f494f0d672384172839722e7cbdcbbd4c2d135196c910dc84ce"
+}

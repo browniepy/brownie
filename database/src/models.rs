@@ -54,6 +54,13 @@ pub enum ArmorType {
     Ring,
 }
 
+#[derive(Debug, Clone, Type, PartialEq)]
+#[sqlx(type_name = "club_role_item_type")]
+pub enum ClubRoleItemType {
+    Membership,
+    Agent,
+}
+
 #[derive(Debug, Clone, Type, PartialEq, poise::ChoiceParameter)]
 #[sqlx(type_name = "club_type")]
 pub enum ClubType {

@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                    m.id,\n                    cr.tr_key,\n                    crl.nth\n                FROM club_member cm\n                JOIN member m ON m.id = cm.member\n                JOIN club_role_log crl ON crl.member = m.id\n                JOIN club_role cr ON cr.club = cm.club\n                WHERE cm.club = $1\n                ORDER BY crl.assigned_at DESC;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "tr_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "nth",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "1fed9044ff0d2c3270b59aeb393322c2b3c08e9bec34179cb5ea439d5f11f063"
+}

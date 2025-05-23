@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO greet_embed (greeting, thumbnail_image_url,\n                author, author_icon_url,\n                description,\n                footer, footer_icon_url, color,\n                image_url)\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n                ON CONFLICT (greeting) DO UPDATE\n                SET thumbnail_image_url = $2,\n                author = $3,\n                author_icon_url = $4,\n                description = $5,\n                footer = $6,\n                footer_icon_url = $7,\n                color = $8,\n                image_url = $9;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "da5a7855aa936bff205ca1a07d938c8499abefb4099d841b9244d0eca689f92d"
+}

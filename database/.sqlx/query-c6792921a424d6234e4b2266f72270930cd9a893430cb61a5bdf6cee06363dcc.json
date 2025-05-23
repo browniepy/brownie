@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE club_limits SET member_limit = $1 WHERE role_name = $2 AND club = $3;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c6792921a424d6234e4b2266f72270930cd9a893430cb61a5bdf6cee06363dcc"
+}

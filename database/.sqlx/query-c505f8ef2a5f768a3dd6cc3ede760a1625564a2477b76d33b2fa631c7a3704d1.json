@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT role_tr_key, item_tr_key\n                FROM club_role_item\n                WHERE club = $1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role_tr_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "item_tr_key",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "c505f8ef2a5f768a3dd6cc3ede760a1625564a2477b76d33b2fa631c7a3704d1"
+}

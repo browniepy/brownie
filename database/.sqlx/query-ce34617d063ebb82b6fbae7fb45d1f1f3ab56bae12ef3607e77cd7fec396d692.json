@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO greeting (guild)\n            VALUES ($1)\n            ON CONFLICT DO NOTHING;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ce34617d063ebb82b6fbae7fb45d1f1f3ab56bae12ef3607e77cd7fec396d692"
+}

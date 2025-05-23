@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.id, i.name, i.usable, i.quality AS \"quality: Quality\", item_type AS \"item_type: ItemType\", s.price\n            FROM normal_item i JOIN\n            normal_shop s ON i.id = s.item;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "usable",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "quality: Quality",
+        "type_info": {
+          "Custom": {
+            "name": "quality",
+            "kind": {
+              "Enum": [
+                "Common",
+                "Epic",
+                "Masterpiece"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "item_type: ItemType",
+        "type_info": {
+          "Custom": {
+            "name": "item_type",
+            "kind": {
+              "Enum": [
+                "Equipment",
+                "Tool",
+                "Material",
+                "Quest",
+                "Misc",
+                "Consumable",
+                "Food"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "price",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "9a702cfecfddcadf7057a622c224cd9ba1812160fa11651db71b53d42f1e3974"
+}

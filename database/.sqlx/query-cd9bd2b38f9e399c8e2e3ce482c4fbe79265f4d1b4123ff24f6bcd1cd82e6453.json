@@ -1,0 +1,39 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT roles AS \"roles: Vec<Role>\"\n            FROM member WHERE id = $1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "roles: Vec<Role>",
+        "type_info": {
+          "Custom": {
+            "name": "role[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "role",
+                  "kind": {
+                    "Enum": [
+                      "Player",
+                      "Gambler"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cd9bd2b38f9e399c8e2e3ce482c4fbe79265f4d1b4123ff24f6bcd1cd82e6453"
+}

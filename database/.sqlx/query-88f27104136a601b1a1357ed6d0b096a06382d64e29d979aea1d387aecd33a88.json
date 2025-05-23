@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM club_role WHERE tr_key = $1 AND club = $2;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "88f27104136a601b1a1357ed6d0b096a06382d64e29d979aea1d387aecd33a88"
+}

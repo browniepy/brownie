@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT member, completed\n                FROM club_apply\n                WHERE club = $1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "member",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "completed",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "24df514f46dc0e5bed3c3cf2881bc7a4133c88b41034505e5c693c60ee59222b"
+}

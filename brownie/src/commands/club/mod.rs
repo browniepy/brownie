@@ -5,16 +5,59 @@ use poise::serenity_prelude::UserId;
 mod roles;
 use roles::role;
 
+mod item;
+use item::item;
+
 #[poise::command(
     prefix_command,
     slash_command,
     install_context = "Guild|User",
     interaction_context = "Guild|BotDm|PrivateChannel",
     subcommand_required,
-    subcommands("create", "rename", "description", "kind", "transfer", "role"),
+    subcommands(
+        "create",
+        "rename",
+        "description",
+        "kind",
+        "transfer",
+        "role",
+        "item",
+        "leave"
+    ),
     category = "club"
 )]
 pub async fn club(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(
+    prefix_command,
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel",
+    category = "club"
+)]
+pub async fn leave(ctx: Context<'_>) -> Result<(), Error> {
+    let data = ctx.data();
+
+    let member = crate::get_member(ctx, ctx.author().id).await?;
+    let mut member_write = member.write().await;
+
+    if member_write.club_id.is_none() {
+        let content = translate!(ctx, "user-not-in-club");
+        return Err(content.into());
+    }
+
+    let club = Helper::get_club(ctx, member_write.club_id.unwrap()).await?;
+    let mut club_write = club.write().await;
+
+    club_write.kick_member(&data.pool, member_write.id).await?;
+
+    member_write.club_id = None;
+
+    let content = translate!(ctx, "club-left");
+    ctx.reply(content).await?;
+
     Ok(())
 }
 
@@ -181,10 +224,7 @@ pub async fn transfer(ctx: Context<'_>, user: UserId) -> Result<(), Error> {
         return Err(content.into());
     }
 
-    if club_write.transfer(&data.pool, user.into()).await.is_err() {
-        let content = translate!(ctx, "unkown-error");
-        return Err(content.into());
-    }
+    club_write.transfer(&data.pool, user.into()).await?;
 
     let content = translate!(ctx, "club-transfered");
     ctx.reply(content).await?;

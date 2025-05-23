@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT log_club_role($1, $2, $3, $4, $5);",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "log_club_role",
+        "type_info": "Void"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Int8",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f0056c25f519ffb9f7554679ccce51c029eb25209b4225b3357a79dc426ca252"
+}

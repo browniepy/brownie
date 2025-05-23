@@ -51,6 +51,7 @@ pub enum ClubError {
     MemberAlreadyExists,
     InsufficientFunds,
     InsufficientPermissions,
+    AlreadyLeader,
     Database(sqlx::Error),
 }
 
@@ -78,6 +79,7 @@ impl std::fmt::Display for ClubError {
             ClubError::MemberAlreadyExists => write!(f, "Member already exists"),
             ClubError::InsufficientFunds => write!(f, "Insufficient funds"),
             ClubError::InsufficientPermissions => write!(f, "Insufficient permissions"),
+            ClubError::AlreadyLeader => write!(f, "Already leader"),
             ClubError::Database(err) => write!(f, "Database error: {}", err),
         }
     }

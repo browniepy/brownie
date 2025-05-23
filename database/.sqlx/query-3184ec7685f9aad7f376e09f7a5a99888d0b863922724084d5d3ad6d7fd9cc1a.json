@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE club_role SET authority = $1 WHERE tr_key = $2 AND club = $3;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3184ec7685f9aad7f376e09f7a5a99888d0b863922724084d5d3ad6d7fd9cc1a"
+}

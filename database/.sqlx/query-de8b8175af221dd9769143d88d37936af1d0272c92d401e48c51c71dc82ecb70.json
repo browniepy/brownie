@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT register_daily_reward_claim($1);",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "register_daily_reward_claim",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "de8b8175af221dd9769143d88d37936af1d0272c92d401e48c51c71dc82ecb70"
+}

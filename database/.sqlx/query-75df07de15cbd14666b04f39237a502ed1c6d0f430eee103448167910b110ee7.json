@@ -1,0 +1,84 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT item.id, item.name, inventory.amount, item.usable, item.quality AS \"quality: Quality\", item.item_type AS \"item_type: ItemType\", victim\n        FROM normal_inventory inventory\n        INNER JOIN normal_item item ON inventory.item = item.id WHERE inventory.member = $1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "amount",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "usable",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 4,
+        "name": "quality: Quality",
+        "type_info": {
+          "Custom": {
+            "name": "quality",
+            "kind": {
+              "Enum": [
+                "Common",
+                "Epic",
+                "Masterpiece"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "item_type: ItemType",
+        "type_info": {
+          "Custom": {
+            "name": "item_type",
+            "kind": {
+              "Enum": [
+                "Equipment",
+                "Tool",
+                "Material",
+                "Quest",
+                "Misc",
+                "Consumable",
+                "Food"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "victim",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "75df07de15cbd14666b04f39237a502ed1c6d0f430eee103448167910b110ee7"
+}

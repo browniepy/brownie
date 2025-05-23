@@ -1,6 +1,6 @@
 use crate::{
     error::ClubError,
-    models::{AuthorityId, ClubItemType, ClubRolePerm, ClubType},
+    models::{AuthorityId, ClubRolePerm, ClubType},
     PgPool,
 };
 use sqlx::FromRow;
@@ -12,7 +12,6 @@ pub struct ClubRole {
     pub authority: i32,
     pub member_limit: i32,
     pub perms: Vec<ClubRolePerm>,
-    pub item_tr_key: Option<String>,
 }
 
 #[derive(Clone, FromRow)]
@@ -30,6 +29,18 @@ pub struct ClubMember {
     pub nth: i32,
 }
 
+#[derive(Clone, FromRow)]
+pub struct ClubRoleItem {
+    pub role_tr_key: String,
+    pub item_tr_key: String,
+}
+
+#[derive(Clone, FromRow)]
+pub struct ClubApply {
+    pub member: i64,
+    pub completed: bool,
+}
+
 #[derive(Clone)]
 pub struct Club {
     pub id: i64,
@@ -44,11 +55,21 @@ pub struct Club {
     pub points: i32,
     pub club_type: ClubType,
     pub stl_rules: ClubStlRules,
+    pub items: Vec<ClubRoleItem>,
+    pub applies: Vec<ClubApply>,
 }
 
 impl Club {
     pub async fn build(pool: &PgPool, club_id: i64) -> Result<Self, ClubError> {
-        let (stl_rules, club_info, roles, members_record) = tokio::try_join!(
+        let (applies, stl_rules, club_info, roles, members_record, items) = tokio::try_join!(
+            sqlx::query_as!(
+                ClubApply,
+                "SELECT member, completed
+                FROM club_apply
+                WHERE club = $1;",
+                club_id
+            )
+            .fetch_all(pool),
             sqlx::query_as!(
                 ClubStlRules,
                 "SELECT required_role, required_balance, karamete, required_agent_zero
@@ -60,7 +81,8 @@ impl Club {
             sqlx::query!(
                 "SELECT renameable, deleteable, name, prestige, description, bank, points,
                 club_type AS \"club_type: ClubType\"
-                FROM club WHERE id = $1;",
+                FROM club
+                WHERE id = $1;",
                 club_id
             )
             .fetch_one(pool),
@@ -69,7 +91,6 @@ impl Club {
                 "SELECT cr.tr_key, cr.authority,
                 cr.perms AS \"perms: Vec<ClubRolePerm>\",
                 cr.authority_id AS \"authority_id: AuthorityId\",
-                cr.item_tr_key,
                 rl.member_limit
                 FROM club_role cr
                 JOIN club_limits rl ON rl.role_name = cr.tr_key AND rl.club = cr.club
@@ -91,6 +112,14 @@ impl Club {
                 club_id
             )
             .fetch_all(pool),
+            sqlx::query_as!(
+                ClubRoleItem,
+                "SELECT role_tr_key, item_tr_key
+                FROM club_role_item
+                WHERE club = $1;",
+                club_id
+            )
+            .fetch_all(pool)
         )?;
 
         let members = members_record
@@ -115,7 +144,163 @@ impl Club {
             points: club_info.points,
             club_type: club_info.club_type,
             stl_rules,
+            items,
+            applies,
         })
+    }
+
+    pub async fn accept_app(&mut self, pool: &PgPool, member_id: i64) -> Result<(), ClubError> {
+        if self.members.iter().any(|member| member.id == member_id) {
+            return Err(ClubError::MemberAlreadyExists);
+        }
+
+        if self.applies.iter().any(|apply| apply.member == member_id) {
+            sqlx::query!(
+                "DELETE FROM club_apply WHERE member = $1 AND club = $2;",
+                member_id,
+                self.id
+            )
+            .execute(pool)
+            .await?;
+
+            self.decline_app(pool, member_id).await?
+        } else {
+            return Err(ClubError::MemberNotFound);
+        }
+
+        Ok(())
+    }
+
+    pub async fn send_app(&mut self, pool: &PgPool, member_id: i64) -> Result<(), ClubError> {
+        if self.members.iter().any(|member| member.id == member_id) {
+            return Err(ClubError::MemberAlreadyExists);
+        }
+
+        if self.applies.iter().any(|apply| apply.member == member_id) {
+            return Err(ClubError::MemberAlreadyExists);
+        }
+
+        let completed = sqlx::query!("SELECT club_send_apply($1, $2);", member_id, self.id)
+            .fetch_one(pool)
+            .await?;
+
+        self.applies.push(ClubApply {
+            member: member_id,
+            completed: completed.club_send_apply.unwrap_or(false),
+        });
+
+        Ok(())
+    }
+
+    pub async fn decline_app(&mut self, pool: &PgPool, member_id: i64) -> Result<(), ClubError> {
+        if let Some(pos) = self
+            .applies
+            .iter()
+            .position(|apply| apply.member == member_id)
+        {
+            sqlx::query!(
+                "DELETE FROM club_apply WHERE member = $1 AND club = $2;",
+                member_id,
+                self.id
+            )
+            .execute(pool)
+            .await?;
+
+            self.applies.remove(pos);
+        } else {
+            return Err(ClubError::MemberNotFound);
+        }
+
+        Ok(())
+    }
+
+    pub async fn create_item(
+        &mut self,
+        pool: &PgPool,
+        role_tr_key: String,
+        item_tr_key: String,
+    ) -> Result<(), ClubError> {
+        if self
+            .items
+            .iter()
+            .any(|item| item.role_tr_key == role_tr_key)
+        {
+            return Err(ClubError::ItemAlreadyExists);
+        }
+
+        if self.roles.iter().any(|role| role.tr_key == role_tr_key) {
+            return Err(ClubError::RoleNotFound);
+        }
+
+        sqlx::query!(
+            "INSERT INTO club_role_item (role_tr_key, item_tr_key, club) VALUES ($1, $2, $3);",
+            role_tr_key,
+            item_tr_key,
+            self.id
+        )
+        .execute(pool)
+        .await?;
+
+        self.items.push(ClubRoleItem {
+            role_tr_key,
+            item_tr_key,
+        });
+
+        Ok(())
+    }
+
+    pub async fn delete_item(
+        &mut self,
+        pool: &PgPool,
+        role_tr_key: String,
+    ) -> Result<(), ClubError> {
+        if let Some(pos) = self
+            .items
+            .iter()
+            .position(|item| item.role_tr_key == role_tr_key)
+        {
+            sqlx::query!(
+                "DELETE FROM club_role_item WHERE role_tr_key = $1 AND club = $2;",
+                role_tr_key,
+                self.id
+            )
+            .execute(pool)
+            .await?;
+
+            self.items.remove(pos);
+        } else {
+            return Err(ClubError::ItemNotFound);
+        }
+
+        Ok(())
+    }
+
+    pub async fn rename_item(
+        &mut self,
+        pool: &PgPool,
+        role_tr_key: String,
+        item_tr_key: String,
+    ) -> Result<(), ClubError> {
+        if let Some(item) = self
+            .items
+            .iter_mut()
+            .find(|item| item.role_tr_key == role_tr_key)
+        {
+            sqlx::query!(
+                "UPDATE club_role_item SET item_tr_key = $1 WHERE role_tr_key = $2 AND club = $3;",
+                item_tr_key,
+                role_tr_key,
+                self.id
+            )
+            .execute(pool)
+            .await?;
+
+            item.item_tr_key = item_tr_key;
+        } else {
+            return Err(ClubError::ItemNotFound);
+        }
+
+        Ok(())
     }
 
     pub async fn set_stl_rules(
@@ -343,7 +528,6 @@ impl Club {
             authority,
             member_limit: limit,
             perms: vec![],
-            item_tr_key: None,
         });
 
         Ok(())
@@ -408,6 +592,12 @@ impl Club {
         self.members.iter_mut().for_each(|member| {
             if member.role_tr_key == role_tr_key {
                 member.role_tr_key = new_tr_key.clone();
+            }
+        });
+
+        self.items.iter_mut().for_each(|item| {
+            if item.role_tr_key == role_tr_key {
+                item.role_tr_key = new_tr_key.clone();
             }
         });
 
@@ -635,30 +825,46 @@ impl Club {
         false
     }
 
-    pub async fn edit_role_item(
-        &mut self,
-        pool: &PgPool,
-        role_tr_key: String,
-        item_tr_key: Option<String>,
-    ) -> Result<(), ClubError> {
-        if let Some(role) = self
-            .roles
-            .iter_mut()
-            .find(|role| role.tr_key == role_tr_key)
-        {
-            sqlx::query!(
-                "UPDATE club_role SET item_tr_key = $1 WHERE tr_key = $2 AND club = $3;",
-                item_tr_key,
-                role_tr_key,
-                self.id
-            )
-            .execute(pool)
-            .await?;
-
-            role.item_tr_key = item_tr_key;
-        } else {
-            return Err(ClubError::RoleNotFound);
+    pub async fn transfer(&mut self, pool: &PgPool, new_leader_id: i64) -> Result<(), ClubError> {
+        if self.get_member(new_leader_id).is_none() {
+            return Err(ClubError::MemberNotFound);
         }
+
+        let leader_role = self
+            .roles
+            .iter()
+            .find(|role| role.authority_id == Some(AuthorityId::Leader))
+            .ok_or(ClubError::RoleNotFound)?
+            .clone();
+
+        let agent_role = self
+            .roles
+            .iter()
+            .find(|role| role.authority_id == Some(AuthorityId::Agent))
+            .ok_or(ClubError::RoleNotFound)?
+            .clone();
+
+        let old_leader_id = self
+            .members
+            .iter()
+            .find(|member| member.role_tr_key == leader_role.tr_key)
+            .ok_or(ClubError::MemberNotFound)?
+            .clone()
+            .id;
+
+        if self
+            .change_role(pool, old_leader_id, agent_role.tr_key, None)
+            .await
+            .is_err()
+        {
+            self.kick_member(pool, old_leader_id)
+                .await
+                .map_err(|_| ClubError::MemberNotFound)?;
+        }
+
+        self.change_role(pool, new_leader_id, leader_role.tr_key, None)
+            .await
+            .map_err(|_| ClubError::MemberNotFound)?;
 
         Ok(())
     }
@@ -706,46 +912,6 @@ impl Club {
             }
         }
         false
-    }
-
-    pub async fn transfer(&mut self, pool: &PgPool, new_leader_id: i64) -> Result<(), ClubError> {
-        let leader_role = self
-            .roles
-            .iter()
-            .find(|role| role.authority_id == Some(AuthorityId::Leader))
-            .ok_or(ClubError::RoleNotFound)?
-            .clone();
-
-        let agent_role = self
-            .roles
-            .iter()
-            .find(|role| role.authority_id == Some(AuthorityId::Agent))
-            .ok_or(ClubError::RoleNotFound)?
-            .clone();
-
-        let old_leader_id = self
-            .members
-            .iter()
-            .find(|member| member.role_tr_key == leader_role.tr_key)
-            .ok_or(ClubError::MemberNotFound)?
-            .clone()
-            .id;
-
-        if self
-            .change_role(pool, old_leader_id, agent_role.tr_key, None)
-            .await
-            .is_err()
-        {
-            self.kick_member(pool, old_leader_id)
-                .await
-                .map_err(|_| ClubError::MemberNotFound)?;
-        }
-
-        self.change_role(pool, new_leader_id, leader_role.tr_key, None)
-            .await
-            .map_err(|_| ClubError::MemberNotFound)?;
-
-        Ok(())
     }
 
     pub async fn log_role_assign(

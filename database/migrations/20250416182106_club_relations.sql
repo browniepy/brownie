@@ -5,6 +5,12 @@ CREATE TABLE agent_slots (
     PRIMARY KEY (club, agent_range)
 );
 
+CREATE TABLE club_req (
+    club bigint REFERENCES club (id) ON DELETE CASCADE,
+    balance bigint NOT NULL DEFAULT 0,
+    points int NOT NULL DEFAULT 0
+);
+
 CREATE FUNCTION create_club (
     leader bigint,
     club_name varchar(255),
@@ -63,6 +69,8 @@ BEGIN
     SELECT club_id, generate_series(0, agent_limit);
 
     INSERT INTO club_stl_rules (club) VALUES (club_id);
+
+    INSERT INTO club_req (club) VALUES (club_id);
 
     RETURN club_id;
 EXCEPTION

@@ -1,0 +1,60 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, name, salary, required_role AS \"required_role: Role \", required_points, cooldown FROM job;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "salary",
+        "type_info": "Int4Array"
+      },
+      {
+        "ordinal": 3,
+        "name": "required_role: Role ",
+        "type_info": {
+          "Custom": {
+            "name": "role",
+            "kind": {
+              "Enum": [
+                "Player",
+                "Gambler"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "required_points",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "cooldown",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "9eee8c0afa358c0f594b0e0f0a4465601a02df190e070b9d5fd755b0941c7535"
+}

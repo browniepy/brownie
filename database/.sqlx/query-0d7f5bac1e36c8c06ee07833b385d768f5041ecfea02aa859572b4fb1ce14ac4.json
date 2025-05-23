@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM club_member WHERE member = $1 AND club = $2;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0d7f5bac1e36c8c06ee07833b385d768f5041ecfea02aa859572b4fb1ce14ac4"
+}

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT nth FROM club_role_log WHERE club = $1 AND member = $2 ORDER BY assigned_by DESC;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "nth",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4d2881807212e78d2ea53abe07429b37eb0b1b7a79e02d7f35a6832c670d0f45"
+}

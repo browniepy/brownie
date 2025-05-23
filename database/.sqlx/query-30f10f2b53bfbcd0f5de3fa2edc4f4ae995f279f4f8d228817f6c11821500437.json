@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT balance as bios, points\n            FROM member WHERE id = $1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "bios",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "points",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "30f10f2b53bfbcd0f5de3fa2edc4f4ae995f279f4f8d228817f6c11821500437"
+}

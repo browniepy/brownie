@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO club_role_item (role_tr_key, item_tr_key, club) VALUES ($1, $2, $3);",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dfb6a1127c68c73575f22f803ff7c79fd9796f23e998c5d733f9fe256a59357a"
+}

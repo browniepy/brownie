@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT member, agent FROM agent_relation\n            WHERE member = $1 OR agent = $1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "member",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "agent",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "6d01adecbb6eff8f15d72c86ded88f028428a95f147023638e55b670cd7f586b"
+}

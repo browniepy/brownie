@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT required_role, required_balance, karamete, required_agent_zero\n                FROM club_stl_rules\n                WHERE club = $1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "required_role",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "required_balance",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "karamete",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "required_agent_zero",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "053b59ab86c1f16f0762fbfd231b8d6117745e8fd9915a42a0a7354919737a2f"
+}

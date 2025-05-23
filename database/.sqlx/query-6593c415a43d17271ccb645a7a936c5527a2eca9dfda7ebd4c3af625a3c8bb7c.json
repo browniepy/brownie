@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, thumbnail_image_url, author, author_icon_url, description, footer, footer_icon_url, color, image_url\n            FROM greet_embed\n            WHERE greeting = $1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "thumbnail_image_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "author",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "author_icon_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "footer",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "footer_icon_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "color",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "image_url",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "6593c415a43d17271ccb645a7a936c5527a2eca9dfda7ebd4c3af625a3c8bb7c"
+}

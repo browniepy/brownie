@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT create_club($1, $2, $3, $4, $5);",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "create_club",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b4107c9438e298bee5d6ca5e49c202d6ccad6e8766e55608f0a675a573da56f7"
+}

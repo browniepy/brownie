@@ -1,0 +1,78 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT cr.tr_key, cr.authority,\n                cr.perms AS \"perms: Vec<ClubRolePerm>\",\n                cr.authority_id AS \"authority_id: AuthorityId\",\n                rl.member_limit\n                FROM club_role cr\n                JOIN club_limits rl ON rl.role_name = cr.tr_key AND rl.club = cr.club\n                WHERE cr.club = $1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tr_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "authority",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "perms: Vec<ClubRolePerm>",
+        "type_info": {
+          "Custom": {
+            "name": "perm[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "perm",
+                  "kind": {
+                    "Enum": [
+                      "ManageRoles",
+                      "ManageMembers",
+                      "ManageBank",
+                      "ManageClub",
+                      "InviteMembers",
+                      "All"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "authority_id: AuthorityId",
+        "type_info": {
+          "Custom": {
+            "name": "authority_id",
+            "kind": {
+              "Enum": [
+                "Leader",
+                "Member",
+                "Agent"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "member_limit",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "2fbb7de48a3740d88ab5acd4f06a170a5b58672dd4b9c6c008637a51629b83de"
+}

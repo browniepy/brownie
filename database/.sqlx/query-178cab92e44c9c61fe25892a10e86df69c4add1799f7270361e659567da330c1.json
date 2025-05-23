@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO normal_inventory (item, member, amount)\n            VALUES ($1, $2, $3)\n            ON CONFLICT (item, member) DO UPDATE\n            SET amount = normal_inventory.amount + $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "178cab92e44c9c61fe25892a10e86df69c4add1799f7270361e659567da330c1"
+}

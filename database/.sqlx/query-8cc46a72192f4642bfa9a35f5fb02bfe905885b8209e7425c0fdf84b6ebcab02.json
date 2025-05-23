@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE club_stl_rules SET required_role = $1, required_balance = $2, required_agent_zero = $3, karamete = $4 WHERE club = $5;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int8",
+        "Bool",
+        "Bool",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8cc46a72192f4642bfa9a35f5fb02bfe905885b8209e7425c0fdf84b6ebcab02"
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE club_role_item SET item_tr_key = $1 WHERE role_tr_key = $2 AND club = $3;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5b01549b9ab162dffa12cf2bce084b02f895d5f03c474d075f1ff86c8e2cd061"
+}

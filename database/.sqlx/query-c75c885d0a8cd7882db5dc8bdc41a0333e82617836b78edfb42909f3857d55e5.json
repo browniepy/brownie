@@ -1,0 +1,72 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, name, usable, item_type AS \"item_type: ItemType \", quality AS \"quality: Quality \"\n            FROM normal_item WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "usable",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "item_type: ItemType ",
+        "type_info": {
+          "Custom": {
+            "name": "item_type",
+            "kind": {
+              "Enum": [
+                "Equipment",
+                "Tool",
+                "Material",
+                "Quest",
+                "Misc",
+                "Consumable",
+                "Food"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "quality: Quality ",
+        "type_info": {
+          "Custom": {
+            "name": "quality",
+            "kind": {
+              "Enum": [
+                "Common",
+                "Epic",
+                "Masterpiece"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c75c885d0a8cd7882db5dc8bdc41a0333e82617836b78edfb42909f3857d55e5"
+}
